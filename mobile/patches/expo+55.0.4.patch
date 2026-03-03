@@ -1,0 +1,127 @@
+diff --git a/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.mm b/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.mm
+index 6fecc8d..cdb00df 100644
+--- a/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.mm
++++ b/node_modules/expo/ios/AppDelegates/EXReactRootViewFactory.mm
+@@ -5,8 +5,9 @@
+ #import <Expo/Swift.h>
+ #import <React/RCTDevMenu.h>
+ 
+-// When `use_frameworks!` is used, the generated Swift header is inside ExpoModulesCore module.
+-// Otherwise, it's available only locally with double-quoted imports.
++// When `use_frameworks!` is used, the generated Swift header is inside
++// ExpoModulesCore module. Otherwise, it's available only locally with
++// double-quoted imports.
+ #if __has_include(<ExpoModulesCore/ExpoModulesCore-Swift.h>)
+ #import <ExpoModulesCore/ExpoModulesCore-Swift.h>
+ #else
+@@ -21,11 +22,13 @@ - (NSURL *)bundleURL;
+ 
+ @implementation EXReactRootViewFactory
+ 
+-- (instancetype)initWithReactDelegate:(nullable EXReactDelegate *)reactDelegate
+-                        configuration:(RCTRootViewFactoryConfiguration *)configuration
+-           turboModuleManagerDelegate:(nullable id<RCTTurboModuleManagerDelegate>)turboModuleManagerDelegate
+-{
+-  if (self = [super initWithConfiguration:configuration andTurboModuleManagerDelegate:turboModuleManagerDelegate]) {
++- (instancetype)
++         initWithReactDelegate:(nullable EXReactDelegate *)reactDelegate
++                 configuration:(RCTRootViewFactoryConfiguration *)configuration
++    turboModuleManagerDelegate:
++        (nullable id<RCTTurboModuleManagerDelegate>)turboModuleManagerDelegate {
++  if (self = [super initWithConfiguration:configuration
++            andTurboModuleManagerDelegate:turboModuleManagerDelegate]) {
+     self.reactDelegate = reactDelegate;
+   }
+   return self;
+@@ -35,46 +38,61 @@ - (instancetype)initWithReactDelegate:(nullable EXReactDelegate *)reactDelegate
+ - (UIView *)viewWithModuleName:(NSString *)moduleName
+              initialProperties:(nullable NSDictionary *)initialProperties
+                  launchOptions:(nullable NSDictionary *)launchOptions
+-          devMenuConfiguration:(RCTDevMenuConfiguration *)devMenuConfiguration
+-{
++           bundleConfiguration:(RCTBundleConfiguration *)bundleConfiguration
++          devMenuConfiguration:(RCTDevMenuConfiguration *)devMenuConfiguration {
+   if (self.reactDelegate != nil) {
+-    return [self.reactDelegate createReactRootViewWithModuleName:moduleName initialProperties:initialProperties launchOptions:launchOptions];
++    return
++        [self.reactDelegate createReactRootViewWithModuleName:moduleName
++                                            initialProperties:initialProperties
++                                                launchOptions:launchOptions];
+   }
+-  return [super viewWithModuleName:moduleName initialProperties:initialProperties launchOptions:launchOptions devMenuConfiguration:devMenuConfiguration];
++  return [super viewWithModuleName:moduleName
++                 initialProperties:initialProperties
++                     launchOptions:launchOptions
++               bundleConfiguration:bundleConfiguration
++              devMenuConfiguration:devMenuConfiguration];
+ }
+ 
+ - (UIView *)superViewWithModuleName:(NSString *)moduleName
+                   initialProperties:(nullable NSDictionary *)initialProperties
+                       launchOptions:(nullable NSDictionary *)launchOptions
+-               devMenuConfiguration:(nullable RCTDevMenuConfiguration *)devMenuConfiguration
+-{
++               devMenuConfiguration:
++                   (nullable RCTDevMenuConfiguration *)devMenuConfiguration {
+   if (devMenuConfiguration == nil) {
+     devMenuConfiguration = [RCTDevMenuConfiguration defaultConfiguration];
+   }
+ 
+-  return [super viewWithModuleName:moduleName initialProperties:initialProperties launchOptions:launchOptions devMenuConfiguration:devMenuConfiguration];
++  return [super viewWithModuleName:moduleName
++                 initialProperties:initialProperties
++                     launchOptions:launchOptions
++               bundleConfiguration:nil
++              devMenuConfiguration:devMenuConfiguration];
+ }
+ #else
+ - (UIView *)viewWithModuleName:(NSString *)moduleName
+              initialProperties:(nullable NSDictionary *)initialProperties
+-                 launchOptions:(nullable NSDictionary *)launchOptions
+-{
++                 launchOptions:(nullable NSDictionary *)launchOptions {
+   if (self.reactDelegate != nil) {
+-    return [self.reactDelegate createReactRootViewWithModuleName:moduleName initialProperties:initialProperties launchOptions:launchOptions];
++    return
++        [self.reactDelegate createReactRootViewWithModuleName:moduleName
++                                            initialProperties:initialProperties
++                                                launchOptions:launchOptions];
+   }
+-  return [super viewWithModuleName:moduleName initialProperties:initialProperties launchOptions:launchOptions];
++  return [super viewWithModuleName:moduleName
++                 initialProperties:initialProperties
++                     launchOptions:launchOptions];
+ }
+ 
+ - (UIView *)superViewWithModuleName:(NSString *)moduleName
+                   initialProperties:(nullable NSDictionary *)initialProperties
+-                      launchOptions:(nullable NSDictionary *)launchOptions
+-{
+-  return [super viewWithModuleName:moduleName initialProperties:initialProperties launchOptions:launchOptions];
++                      launchOptions:(nullable NSDictionary *)launchOptions {
++  return [super viewWithModuleName:moduleName
++                 initialProperties:initialProperties
++                     launchOptions:launchOptions];
+ }
+ #endif
+ 
+-- (NSURL *)bundleURL
+-{
++- (NSURL *)bundleURL {
+   return [self.reactDelegate bundleURL] ?: [super bundleURL];
+ }
+ 
+diff --git a/node_modules/expo/ios/AppDelegates/ExpoReactNativeFactory.swift b/node_modules/expo/ios/AppDelegates/ExpoReactNativeFactory.swift
+index 925e0f9..f88d5e9 100644
+--- a/node_modules/expo/ios/AppDelegates/ExpoReactNativeFactory.swift
++++ b/node_modules/expo/ios/AppDelegates/ExpoReactNativeFactory.swift
+@@ -133,7 +133,8 @@ public class ExpoReactNativeFactory: ExpoReactNativeFactoryObjC, ExpoReactNative
+         withModuleName: moduleName ?? defaultModuleName,
+         initialProperties: initialProps,
+         launchOptions: launchOptions,
+-        devMenuConfiguration: self.devMenuConfiguration
++        bundleConfiguration: RCTBundleConfiguration(),
++        devMenuConfiguration: self.devMenuConfiguration ?? RCTDevMenuConfiguration.default()
+       )
+ #else
+       rootView = rootViewFactory.view(

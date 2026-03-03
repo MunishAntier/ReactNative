@@ -96,7 +96,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
                     <Text style={styles.peerName} numberOfLines={1}>
                         {item.peer_email || item.peer_phone || `User #${item.peer_user_id}`}
                     </Text>
-                    <Text style={styles.timeText}>{formatTime(item.last_message_at)}</Text>
+                    <Text style={styles.timeText}>{item.last_message_at ? formatTime(item.last_message_at) : ''}</Text>
                 </View>
                 <View style={styles.conversationFooter}>
                     <Text style={styles.lastMessage} numberOfLines={1}>

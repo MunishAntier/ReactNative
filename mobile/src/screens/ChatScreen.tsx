@@ -62,7 +62,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                                 id: msg.client_message_id,
                                 text: '[sent message]',
                                 isMine: true,
-                                timestamp: msg.server_received_at,
+                                timestamp: msg.created_at,
                                 status: msg.read_at ? 'read' : msg.delivered_at ? 'delivered' : 'sent',
                                 serverMessageId: msg.id,
                             });
@@ -76,7 +76,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                                 id: msg.client_message_id,
                                 text: plaintext,
                                 isMine: false,
-                                timestamp: msg.server_received_at,
+                                timestamp: msg.created_at,
                                 status: 'delivered',
                                 serverMessageId: msg.id,
                             });
@@ -89,7 +89,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                             id: msg.client_message_id || `msg-${msg.id}`,
                             text: '🔒 Unable to decrypt',
                             isMine: msg.sender_id === myUserId,
-                            timestamp: msg.server_received_at,
+                            timestamp: msg.created_at,
                             status: 'failed',
                             serverMessageId: msg.id,
                         });
@@ -116,6 +116,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     data.ciphertext_b64,
                     data.header,
                     data.sender_user_id,
+                    data.sender_device_id,
                 );
                 const newMsg: ChatMessage = {
                     id: data.client_message_id,
@@ -156,7 +157,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             );
         });
 
-        const unsubIdentity = websocket.on('identity.changed', (data: any) => {
+        // Fixed: backend sends 'session.identity_changed', not 'identity.changed'
+        const unsubIdentity = websocket.on('session.identity_changed', (data: any) => {
             if (data.changed_user_id === peerUserId) {
                 setSecurityWarning(true);
                 Alert.alert(

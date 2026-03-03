@@ -8,7 +8,7 @@ export interface Message {
     client_message_id: string;
     ciphertext_b64: string;
     header: Record<string, any>;
-    server_received_at: string;
+    created_at: string;
     delivered_at?: string;
     read_at?: string;
 }
@@ -18,12 +18,14 @@ export interface ConversationItem {
     peer_user_id: number;
     peer_email?: string;
     peer_phone?: string;
-    last_message_at: string;
+    last_message_id?: number;
+    last_message_at?: string;
     unread_count: number;
 }
 
 /**
  * Sync messages since a given timestamp (offline sync).
+ * Backend returns { items: [...] }
  */
 export async function syncMessages(
     since: string,
@@ -36,11 +38,12 @@ export async function syncMessages(
         throw new Error('Failed to sync messages');
     }
     const data = await res.json();
-    return data.messages || [];
+    return data.items || [];
 }
 
 /**
  * List conversations for the current user.
+ * Backend returns { items: [...] }
  */
 export async function listConversations(
     limit: number = 50,
@@ -50,7 +53,7 @@ export async function listConversations(
         throw new Error('Failed to list conversations');
     }
     const data = await res.json();
-    return data.conversations || [];
+    return data.items || [];
 }
 
 /**

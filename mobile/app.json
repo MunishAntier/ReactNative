@@ -1,4 +1,37 @@
 {
   "name": "SecureMsg",
-  "displayName": "SecureMsg"
+  "displayName": "SecureMsg",
+  "expo": {
+    "name": "SecureMsg",
+    "slug": "securemsg",
+    "version": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "com.securemsg"
+    },
+    "plugins": [
+      [
+        "react-native-libsignal-client",
+        {
+          "ios": {
+            "staticPods": [
+              "react-native-quick-base64",
+              "RNScreens",
+              "react-native-safe-area-context",
+              "RNKeychain",
+              "react-native-get-random-values",
+              "AsyncStorage"
+            ]
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic"
+          }
+        }
+      ]
+    ]
+  }
 }

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { startAuth, verifyOTP } from '../services/auth';
 import { generateAndUploadKeys } from '../services/keys';
+import * as SignalManager from '../crypto/SignalManager';
 
 interface LoginScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
@@ -34,8 +35,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setLoading(true);
         try {
             const res = await startAuth(email.trim());
-            if (res.otp_dev) {
-                setDevOtp(res.otp_dev);
+            if (res.dev_otp) {
+                setDevOtp(res.dev_otp);
             }
             setStep('otp');
         } catch (err: any) {
@@ -52,12 +53,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
         setLoading(true);
         try {
-            const deviceUuid = `android-${Date.now()}`;
-            const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid);
+            const deviceUuid = `${Platform.OS}-${Date.now()}`;
+            const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
 
-            // If new device, generate and upload key bundle
-            if (res.is_new_device) {
+            // Initialize Signal and upload keys
+            // Keys are always uploaded after verification to ensure the server has fresh keys
+            try {
                 await generateAndUploadKeys(100);
+                console.log('[Login] Keys generated and uploaded');
+            } catch (keyErr: any) {
+                console.warn('[Login] Key upload failed (may already exist):', keyErr.message);
             }
 
             onLoginSuccess(res.user_id, res.device_id);

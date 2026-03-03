@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StatusBar } from 'react-native';
 import { loadTokens, clearTokens } from '../services/api';
-import { logout } from '../services/auth';
+import { logout, loadUserInfo } from '../services/auth';
 import { websocket } from '../services/websocket';
+import * as SignalManager from '../crypto/SignalManager';
 import LoginScreen from '../screens/LoginScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -25,9 +26,19 @@ const AppNavigator: React.FC = () => {
         const checkAuth = async () => {
             const tokens = await loadTokens();
             if (tokens?.accessToken) {
-                // We don't persist userId/deviceId for now, so user is auto-logged-in
-                // but we go to conversations with userId=0 (will be fetched from /me)
-                setScreen({ name: 'conversations', userId: 0, deviceId: 0 });
+                // Load persisted user info
+                const userInfo = await loadUserInfo();
+                const userId = userInfo?.userId ?? 0;
+                const deviceId = userInfo?.deviceId ?? 0;
+
+                // Initialize Signal stores
+                try {
+                    await SignalManager.initialize();
+                } catch (err) {
+                    console.warn('[App] Signal init on resume:', err);
+                }
+
+                setScreen({ name: 'conversations', userId, deviceId });
                 websocket.connect();
             }
         };
@@ -42,6 +53,7 @@ const AppNavigator: React.FC = () => {
     const handleLogout = useCallback(async () => {
         websocket.disconnect();
         await logout();
+        await SignalManager.clearAll();
         setScreen({ name: 'login' });
     }, []);
 

@@ -7,6 +7,7 @@ interface WebSocketConfig {
     url?: string;
     reconnectMaxAttempts?: number;
     reconnectBaseDelay?: number;
+    presencePingInterval?: number;
 }
 
 class SecureWebSocket {
@@ -14,6 +15,7 @@ class SecureWebSocket {
     private handlers = new Map<string, Set<EventHandler>>();
     private reconnectAttempts = 0;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private presenceTimer: ReturnType<typeof setInterval> | null = null;
     private intentionallyClosed = false;
     private config: Required<WebSocketConfig>;
 
@@ -22,6 +24,7 @@ class SecureWebSocket {
             url: config.url || 'ws://10.0.2.2:8080/v1/ws',
             reconnectMaxAttempts: config.reconnectMaxAttempts || 10,
             reconnectBaseDelay: config.reconnectBaseDelay || 1000,
+            presencePingInterval: config.presencePingInterval || 60000,
         };
     }
 
@@ -40,6 +43,7 @@ class SecureWebSocket {
             console.log('[WS] Connected');
             this.reconnectAttempts = 0;
             this.emit('connection', { status: 'connected' });
+            this.startPresencePing();
         };
 
         this.ws.onmessage = (event: WebSocketMessageEvent) => {
@@ -48,7 +52,7 @@ class SecureWebSocket {
                 const type = data.type as string;
 
                 // Handle system events
-                if (type === 'prekey.low') {
+                if (type === 'prekeys.low') {
                     replenishOneTimePreKeys().catch(err =>
                         console.error('[WS] Failed to replenish pre-keys:', err),
                     );
@@ -68,11 +72,26 @@ class SecureWebSocket {
 
         this.ws.onclose = (event: WebSocketCloseEvent) => {
             console.log('[WS] Closed:', event.code, event.reason);
+            this.stopPresencePing();
             this.emit('connection', { status: 'disconnected' });
             if (!this.intentionallyClosed) {
                 this.scheduleReconnect();
             }
         };
+    }
+
+    private startPresencePing(): void {
+        this.stopPresencePing();
+        this.presenceTimer = setInterval(() => {
+            this.send({ type: 'presence.ping' });
+        }, this.config.presencePingInterval);
+    }
+
+    private stopPresencePing(): void {
+        if (this.presenceTimer) {
+            clearInterval(this.presenceTimer);
+            this.presenceTimer = null;
+        }
     }
 
     private scheduleReconnect(): void {
@@ -129,7 +148,7 @@ class SecureWebSocket {
      */
     ackDelivered(serverMessageId: number): void {
         this.send({
-            type: 'message.delivered',
+            type: 'message.ack.delivered',
             server_message_id: serverMessageId,
         });
     }
@@ -139,7 +158,7 @@ class SecureWebSocket {
      */
     ackRead(serverMessageId: number): void {
         this.send({
-            type: 'message.read',
+            type: 'message.ack.read',
             server_message_id: serverMessageId,
         });
     }
@@ -164,6 +183,7 @@ class SecureWebSocket {
 
     disconnect(): void {
         this.intentionallyClosed = true;
+        this.stopPresencePing();
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;

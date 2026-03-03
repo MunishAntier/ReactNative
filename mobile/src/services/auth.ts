@@ -1,16 +1,47 @@
 import { apiFetch, saveTokens, clearTokens } from './api';
+import Keychain from 'react-native-keychain';
 
 export interface AuthStartResponse {
-    message: string;
-    otp_dev?: string; // exposed only in development mode
+    identifier: string;
+    purpose: string;
+    otp_ttl_seconds: number;
+    dev_otp?: string; // exposed only in development mode
 }
 
 export interface AuthVerifyResponse {
     user_id: number;
     device_id: number;
+    session_id: string;
     access_token: string;
+    access_expires_at: string;
     refresh_token: string;
-    is_new_device: boolean;
+    refresh_expires_at: string;
+}
+
+const USER_INFO_SERVICE = 'securemsg_user_info';
+
+/**
+ * Persist user info (userId, deviceId) so we can restore after app relaunch.
+ */
+async function saveUserInfo(userId: number, deviceId: number): Promise<void> {
+    await Keychain.setGenericPassword(
+        'user_info',
+        JSON.stringify({ userId, deviceId }),
+        { service: USER_INFO_SERVICE },
+    );
+}
+
+/**
+ * Load persisted user info.
+ */
+export async function loadUserInfo(): Promise<{ userId: number; deviceId: number } | null> {
+    try {
+        const creds = await Keychain.getGenericPassword({ service: USER_INFO_SERVICE });
+        if (creds) {
+            return JSON.parse(creds.password);
+        }
+    } catch { }
+    return null;
 }
 
 /**
@@ -18,7 +49,7 @@ export interface AuthVerifyResponse {
  * @param identifier - email or phone number
  */
 export async function startAuth(identifier: string): Promise<AuthStartResponse> {
-    const res = await fetch('http://10.0.2.2:8080/v1/auth/start', {
+    const res = await fetch('http://127.0.0.1:8080/v1/auth/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier }),
@@ -39,7 +70,7 @@ export async function verifyOTP(
     deviceUuid: string,
     platform: string = 'android',
 ): Promise<AuthVerifyResponse> {
-    const res = await fetch('http://10.0.2.2:8080/v1/auth/verify', {
+    const res = await fetch('http://127.0.0.1:8080/v1/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,6 +89,7 @@ export async function verifyOTP(
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
     });
+    await saveUserInfo(data.user_id, data.device_id);
     return data;
 }
 
@@ -69,10 +101,11 @@ export async function logout(): Promise<void> {
         await apiFetch('/auth/logout', { method: 'POST' });
     } catch { }
     await clearTokens();
+    await Keychain.resetGenericPassword({ service: USER_INFO_SERVICE });
 }
 
 /**
- * Get current user info.
+ * Get current user info from the server.
  */
 export async function getMe(): Promise<any> {
     const res = await apiFetch('/me');

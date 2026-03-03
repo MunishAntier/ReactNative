@@ -1,7 +1,5 @@
-import { NativeModules } from 'react-native';
+import * as SignalManager from '../crypto/SignalManager';
 import { apiFetch } from './api';
-
-const { SignalBridge } = NativeModules;
 
 export interface KeyBundle {
     registration_id: number;
@@ -29,10 +27,11 @@ export interface PeerKeyBundle {
 
 /**
  * Generate initial key bundle and upload to server.
- * Called once on first login (when is_new_device is true).
+ * Called once on first login (when no keys exist on server).
  */
 export async function generateAndUploadKeys(oneTimePreKeyCount: number = 100): Promise<KeyBundle> {
-    const bundle: KeyBundle = await SignalBridge.generateInitialBundle(oneTimePreKeyCount);
+    await SignalManager.initialize();
+    const bundle = await SignalManager.generateInitialBundle(oneTimePreKeyCount);
 
     const res = await apiFetch('/keys/upload', {
         method: 'POST',
@@ -42,15 +41,16 @@ export async function generateAndUploadKeys(oneTimePreKeyCount: number = 100): P
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Key upload failed');
     }
+    console.log('[Keys] Initial bundle uploaded');
     return bundle;
 }
 
 /**
  * Generate and upload additional one-time pre-keys.
- * Called when server sends `prekey.low` WebSocket notification.
+ * Called when server sends `prekeys.low` WebSocket notification.
  */
 export async function replenishOneTimePreKeys(count: number = 100): Promise<void> {
-    const keys = await SignalBridge.generateOneTimePreKeys(count);
+    const keys = await SignalManager.generateOneTimePreKeys(count);
 
     const res = await apiFetch('/keys/one-time-prekeys/upload', {
         method: 'POST',
@@ -59,6 +59,7 @@ export async function replenishOneTimePreKeys(count: number = 100): Promise<void
     if (!res.ok) {
         throw new Error('Failed to upload one-time pre-keys');
     }
+    console.log(`[Keys] Replenished ${count} one-time pre-keys`);
 }
 
 /**
@@ -66,7 +67,7 @@ export async function replenishOneTimePreKeys(count: number = 100): Promise<void
  * Should be called periodically (every 30 days) or on reinstall.
  */
 export async function rotateSignedPreKey(): Promise<void> {
-    const result = await SignalBridge.rotateSignedPreKey();
+    const result = await SignalManager.rotateSignedPreKey();
 
     const res = await apiFetch('/keys/signed-prekey/rotate', {
         method: 'POST',
@@ -82,11 +83,12 @@ export async function rotateSignedPreKey(): Promise<void> {
     if (!res.ok) {
         throw new Error('Failed to rotate signed pre-key');
     }
+    console.log('[Keys] Signed pre-key rotated');
 }
 
 /**
  * Fetch a peer's public key bundle from the server.
- * The server marks the used one-time pre-key.
+ * The server picks and reserves one of their one-time pre-keys.
  */
 export async function fetchPeerKeyBundle(userId: number): Promise<PeerKeyBundle> {
     const res = await apiFetch(`/keys/${userId}`);

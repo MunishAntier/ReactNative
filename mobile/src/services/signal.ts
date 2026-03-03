@@ -1,8 +1,6 @@
-import { NativeModules } from 'react-native';
+import * as SignalManager from '../crypto/SignalManager';
 import { fetchPeerKeyBundle, PeerKeyBundle } from './keys';
 import { websocket } from './websocket';
-
-const { SignalBridge } = NativeModules;
 
 /**
  * Generate a unique client message ID.
@@ -20,19 +18,24 @@ export async function sendEncryptedMessage(
     plaintext: string,
     conversationId: number | null = null,
 ): Promise<string> {
-    // Check if session exists
-    const hasSession = await SignalBridge.hasSession(receiverUserId);
+    // Default device ID — server returns the latest device's ID in the key bundle
+    let peerDeviceId = 1;
 
-    if (!hasSession) {
+    // Check if session exists
+    const exists = await SignalManager.hasSession(receiverUserId, peerDeviceId);
+
+    if (!exists) {
         // No session — perform X3DH key agreement
         const peerBundle: PeerKeyBundle = await fetchPeerKeyBundle(receiverUserId);
-        await SignalBridge.initializeSession(receiverUserId, peerBundle);
+        peerDeviceId = peerBundle.device_id;
+        await SignalManager.initSession(receiverUserId, peerBundle);
     }
 
     // Encrypt using Double Ratchet
-    const { ciphertext_b64, header } = await SignalBridge.encrypt(
-        plaintext,
+    const { ciphertext_b64, header } = await SignalManager.encrypt(
         receiverUserId,
+        peerDeviceId,
+        plaintext,
     );
 
     const clientMessageId = generateClientMessageId();
@@ -57,22 +60,23 @@ export async function decryptIncomingMessage(
     ciphertextB64: string,
     header: Record<string, any>,
     senderUserId: number,
+    senderDeviceId: number = 1,
 ): Promise<string> {
     try {
-        const plaintext: string = await SignalBridge.decrypt(
+        const plaintext = await SignalManager.decrypt(
+            senderUserId,
+            senderDeviceId,
             ciphertextB64,
             header,
-            senderUserId,
         );
         return plaintext;
     } catch (err: any) {
         // If decryption fails, the session may be corrupted (e.g., sender reinstalled app)
-        // Invalidate session and notify the UI
         console.error('[Signal] Decryption failed:', err.message);
 
         // Try to invalidate the corrupted session
         try {
-            await SignalBridge.invalidateSession(senderUserId);
+            await SignalManager.invalidateSession(senderUserId, senderDeviceId);
         } catch { }
 
         throw new Error(
@@ -86,13 +90,13 @@ export async function decryptIncomingMessage(
  * Invalidate a session with a peer.
  * Used when identity key change is detected.
  */
-export async function invalidateSession(peerUserId: number): Promise<void> {
-    await SignalBridge.invalidateSession(peerUserId);
+export async function invalidateSession(peerUserId: number, peerDeviceId: number = 1): Promise<void> {
+    await SignalManager.invalidateSession(peerUserId, peerDeviceId);
 }
 
 /**
  * Check if a session exists with a peer.
  */
-export async function hasSession(peerUserId: number): Promise<boolean> {
-    return SignalBridge.hasSession(peerUserId);
+export async function hasSession(peerUserId: number, peerDeviceId: number = 1): Promise<boolean> {
+    return SignalManager.hasSession(peerUserId, peerDeviceId);
 }
