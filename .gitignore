@@ -1,0 +1,14 @@
+# general
+.DS_Store
+.env
+*.log
+
+# go
+backend/bin/
+backend/.cache/
+
+# mobile
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/ios/DerivedData/

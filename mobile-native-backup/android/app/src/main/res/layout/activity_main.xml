@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/titleView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Secure Messaging"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/identifierInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="email or phone"
+        android:inputType="textEmailAddress" />
+
+    <Button
+        android:id="@+id/requestOtpBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Request OTP" />
+
+    <EditText
+        android:id="@+id/otpInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="otp"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/verifyOtpBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Verify OTP + Login" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="8dp" />
+
+    <EditText
+        android:id="@+id/receiverInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="receiver user id"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/messageInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="message"
+        android:inputType="text" />
+
+    <Button
+        android:id="@+id/sendBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Send Message" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/syncBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Sync" />
+
+        <Button
+            android:id="@+id/logoutBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Logout" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/logView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:typeface="monospace" />
+    </ScrollView>
+</LinearLayout>
