@@ -265,6 +265,7 @@ export async function encrypt(
     ciphertext_b64: string;
     header: {
         session_version: number;
+        message_type: 'prekey' | 'whisper';
         sender_identity_pub_b64: string;
         sender_ephemeral_pub_b64: string;
         receiver_one_time_prekey_id: number;
@@ -323,6 +324,7 @@ export async function encrypt(
         ciphertext_b64: ciphertextB64,
         header: {
             session_version: 3,
+            message_type: msgType === CiphertextMessageType.PreKey ? 'prekey' : 'whisper',
             sender_identity_pub_b64: Buffer.from(
                 cachedIdentity!.identityKeyPair.publicKey.serialized,
             ).toString('base64'),
@@ -351,8 +353,11 @@ export async function decrypt(
 
     let plaintext: Uint8Array;
 
-    try {
-        // Try to parse as PreKeySignalMessage first
+    // Use header's message_type if available for deterministic dispatch
+    const messageType = _header?.message_type;
+
+    if (messageType === 'prekey') {
+        // Sender told us this is a PreKey message
         const preKeyMsg = PreKeySignalMessage._fromSerialized(ciphertextBytes);
         plaintext = await signalDecryptPreKey(
             preKeyMsg,
@@ -362,18 +367,42 @@ export async function decrypt(
             preKeyStore,
             signedPreKeyStore,
             kyberPreKeyStore,
-            [], // no kyber pre-key IDs
+            [],
         );
         console.log(`[Signal] 🔓 Decrypted PreKey message from user ${senderUserId}`);
-    } catch {
-        // If that fails, parse as regular SignalMessage
+    } else if (messageType === 'whisper') {
+        // Sender told us this is a regular Signal (Whisper) message
+        const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
+        plaintext = await signalDecrypt(signalMsg, address, sessionStore, identityStore);
+        console.log(`[Signal] 🔓 Decrypted Signal message from user ${senderUserId}`);
+    } else {
+        // Legacy fallback: header doesn't contain message_type (older messages)
+        // Try PreKey first, then Whisper
         try {
-            const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
-            plaintext = await signalDecrypt(signalMsg, address, sessionStore, identityStore);
-            console.log(`[Signal] 🔓 Decrypted Signal message from user ${senderUserId}`);
-        } catch (err: any) {
-            console.error(`[Signal] Decryption failed for user ${senderUserId}:`, err.message);
-            throw err;
+            const preKeyMsg = PreKeySignalMessage._fromSerialized(ciphertextBytes);
+            plaintext = await signalDecryptPreKey(
+                preKeyMsg,
+                address,
+                sessionStore,
+                identityStore,
+                preKeyStore,
+                signedPreKeyStore,
+                kyberPreKeyStore,
+                [],
+            );
+            console.log(`[Signal] 🔓 Decrypted PreKey message from user ${senderUserId} (legacy)`);
+        } catch (preKeyErr: any) {
+            // Only fall through to Whisper if PreKey PARSING failed,
+            // not if decryption itself failed
+            try {
+                const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
+                plaintext = await signalDecrypt(signalMsg, address, sessionStore, identityStore);
+                console.log(`[Signal] 🔓 Decrypted Signal message from user ${senderUserId} (legacy)`);
+            } catch (whisperErr: any) {
+                // Both failed — throw the more descriptive error
+                console.error(`[Signal] Decryption failed for user ${senderUserId}:`, preKeyErr.message, '/', whisperErr.message);
+                throw preKeyErr;
+            }
         }
     }
 
