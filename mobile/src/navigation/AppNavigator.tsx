@@ -33,21 +33,21 @@ const AppNavigator: React.FC = () => {
 
                 // Initialize Signal stores
                 try {
-                    await SignalManager.initialize();
+                    await SignalManager.initialize(userId);
                 } catch (err) {
                     console.warn('[App] Signal init on resume:', err);
                 }
 
                 setScreen({ name: 'conversations', userId, deviceId });
-                websocket.connect();
+                websocket.connect(userId);
             }
         };
         checkAuth();
     }, []);
 
-    const handleLoginSuccess = useCallback((userId: number, deviceId: number) => {
+    const handleLoginSuccess = useCallback(async (userId: number, deviceId: number) => {
         setScreen({ name: 'conversations', userId, deviceId });
-        websocket.connect();
+        websocket.connect(userId);
     }, []);
 
     const handleLogout = useCallback(async () => {

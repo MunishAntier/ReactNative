@@ -40,34 +40,56 @@ import {
     getCurrentSignedPreKeyId,
     setCurrentSignedPreKeyId,
     clearSignalStorage,
+    migrateOldKeys,
 } from './SignalKeyStore';
 
 // ────────────────────────── Singleton Stores ──────────────────────────
 
-const identityStore = new AppIdentityKeyStore();
-const sessionStore = new AppSessionStore();
-const preKeyStore = new AppPreKeyStore();
-const signedPreKeyStore = new AppSignedPreKeyStore();
-const kyberPreKeyStore = new AppKyberPreKeyStore();
+let identityStore: AppIdentityKeyStore;
+let sessionStore: AppSessionStore;
+let preKeyStore: AppPreKeyStore;
+let signedPreKeyStore: AppSignedPreKeyStore;
+let kyberPreKeyStore: AppKyberPreKeyStore;
 
 // Cached identity after initialization
-let cachedIdentity: { identityKeyPair: IdentityKeyPair; registrationId: number } | null = null;
+let cachedIdentity: { userId: number; identityKeyPair: IdentityKeyPair; registrationId: number } | null = null;
 
 // ────────────────────────── Public API ──────────────────────────
 
 /**
- * Load or generate the local identity key pair + registration ID.
+ * Load or generate the local identity key pair + registration ID for a specific user.
  * Must be called before any other operation.
  */
-export async function initialize(): Promise<void> {
-    cachedIdentity = await initializeIdentity();
-    console.log('[Signal] Initialized with regId:', cachedIdentity.registrationId);
+export async function initialize(userId: number): Promise<boolean> {
+    if (cachedIdentity?.userId === userId) return false;
+
+    // Diagnostic: check native module methods
+    try {
+        const native = require('react-native-libsignal-client/src/ReactNativeLibsignalClientModule').default;
+        console.log('[Signal] Native module methods:', Object.keys(native).filter(k => typeof native[k] === 'function'));
+    } catch (e) {
+        console.warn('[Signal] Could not inspect native module');
+    }
+
+    // Migrate any keys stored under the old global prefix
+    await migrateOldKeys(userId);
+
+    identityStore = new AppIdentityKeyStore(userId);
+    sessionStore = new AppSessionStore(userId);
+    preKeyStore = new AppPreKeyStore(userId);
+    signedPreKeyStore = new AppSignedPreKeyStore(userId);
+    kyberPreKeyStore = new AppKyberPreKeyStore();
+
+    const identity = await initializeIdentity(userId);
+    cachedIdentity = { userId, identityKeyPair: identity.identityKeyPair, registrationId: identity.registrationId };
+    console.log(`[Signal] Initialized for user ${userId} with regId:`, cachedIdentity.registrationId, identity.isNew ? '(NEW identity)' : '(existing identity)');
+    return identity.isNew;
 }
 
 /**
  * Generate the initial key bundle for upload to server on first login.
  */
-export async function generateInitialBundle(preKeyCount: number = 100): Promise<{
+export async function generateInitialBundle(userId: number, preKeyCount: number = 100): Promise<{
     registration_id: number;
     identity_public_key: string;
     identity_key_version: number;
@@ -77,7 +99,7 @@ export async function generateInitialBundle(preKeyCount: number = 100): Promise<
     signed_prekey_expires_at: string;
     one_time_prekeys: Array<{ prekey_id: number; prekey_public: string }>;
 }> {
-    if (!cachedIdentity) await initialize();
+    await initialize(userId);
     const { identityKeyPair, registrationId } = cachedIdentity!;
 
     // Generate signed pre-key
@@ -95,12 +117,12 @@ export async function generateInitialBundle(preKeyCount: number = 100): Promise<
         signature,
     );
     await signedPreKeyStore.saveSignedPreKey(signedPreKeyId, signedPreKeyRecord);
-    await setCurrentSignedPreKeyId(signedPreKeyId);
+    await setCurrentSignedPreKeyId(userId, signedPreKeyId);
 
     // Generate one-time pre-keys
     const oneTimePreKeys: Array<{ prekey_id: number; prekey_public: string }> = [];
     for (let i = 0; i < preKeyCount; i++) {
-        const preKeyId = await getNextPreKeyId();
+        const preKeyId = await getNextPreKeyId(userId);
         const preKeyPrivate = PrivateKey.generate();
         const preKeyPublic = preKeyPrivate.getPublicKey();
         const preKeyRecord = PreKeyRecord.new(preKeyId, preKeyPublic, preKeyPrivate);
@@ -131,11 +153,13 @@ export async function generateInitialBundle(preKeyCount: number = 100): Promise<
  * Generate additional one-time pre-keys for replenishment.
  */
 export async function generateOneTimePreKeys(
+    userId: number,
     count: number = 100,
 ): Promise<Array<{ prekey_id: number; prekey_public: string }>> {
+    await initialize(userId);
     const preKeys: Array<{ prekey_id: number; prekey_public: string }> = [];
     for (let i = 0; i < count; i++) {
-        const preKeyId = await getNextPreKeyId();
+        const preKeyId = await getNextPreKeyId(userId);
         const preKeyPrivate = PrivateKey.generate();
         const preKeyPublic = preKeyPrivate.getPublicKey();
         const preKeyRecord = PreKeyRecord.new(preKeyId, preKeyPublic, preKeyPrivate);
@@ -152,15 +176,15 @@ export async function generateOneTimePreKeys(
 /**
  * Rotate the signed pre-key. Returns the new public data for server upload.
  */
-export async function rotateSignedPreKey(): Promise<{
+export async function rotateSignedPreKey(userId: number): Promise<{
     signed_prekey_id: number;
     signed_prekey_public: string;
     signed_prekey_signature: string;
 }> {
-    if (!cachedIdentity) await initialize();
+    await initialize(userId);
     const { identityKeyPair } = cachedIdentity!;
 
-    const currentId = await getCurrentSignedPreKeyId();
+    const currentId = await getCurrentSignedPreKeyId(userId);
     const newId = currentId + 1;
 
     const newPrivate = PrivateKey.generate();
@@ -170,7 +194,7 @@ export async function rotateSignedPreKey(): Promise<{
 
     const record = SignedPreKeyRecord.new(newId, timestamp, newPublic, newPrivate, signature);
     await signedPreKeyStore.saveSignedPreKey(newId, record);
-    await setCurrentSignedPreKeyId(newId);
+    await setCurrentSignedPreKeyId(userId, newId);
 
     return {
         signed_prekey_id: newId,
@@ -251,12 +275,40 @@ export async function encrypt(
         message_index: number;
     };
 }> {
-    if (!cachedIdentity) await initialize();
+    if (!cachedIdentity) throw new Error('SignalManager not initialized');
+
+    // Robustness: ensure Buffer is available
+    if (typeof Buffer === 'undefined' || typeof Buffer.from !== 'function') {
+        throw new Error('Buffer polyfill not found or broken');
+    }
 
     const address = new ProtocolAddress(peerUserId.toString(), peerDeviceId);
-    const message = Buffer.from(plaintext, 'utf-8');
+    const message = new Uint8Array(Buffer.from(plaintext, 'utf-8'));
+
+    console.log(`[Signal] Encrypting for user ${peerUserId}, device ${peerDeviceId}`);
+
+    // Step 1: Check session exists
+    const session = await sessionStore.getSession(address);
+    if (!session) {
+        throw new Error(`No session with user ${peerUserId}. Cannot encrypt.`);
+    }
+
+    // Step 2: Check peer identity key exists
+    const peerIdentity = await identityStore.getIdentity(address);
+    if (!peerIdentity) {
+        throw new Error(`No saved identity key for user ${peerUserId}.`);
+    }
+
+    // Step 3: Get our own identity key (required by Signal)
+    const ownPrivateKey = await identityStore.getIdentityKey();
+    if (!ownPrivateKey) throw new Error('Local identity private key missing');
+
+    // Step 4: Call signalEncrypt
+    if (typeof signalEncrypt !== 'function') throw new Error('signalEncrypt library function missing');
 
     const cipherText = await signalEncrypt(message, address, sessionStore, identityStore);
+    if (!cipherText) throw new Error('signalEncrypt returned null');
+
     const ciphertextBytes = cipherText.serialized;
     const msgType = cipherText.type();
 
@@ -264,15 +316,29 @@ export async function encrypt(
     let messageIndex = 0;
 
     if (msgType === CiphertextMessageType.PreKey) {
+        if (typeof PreKeySignalMessage._fromSerialized !== 'function') throw new Error('PreKeySignalMessage._fromSerialized missing');
         const preKeyMsg = PreKeySignalMessage._fromSerialized(ciphertextBytes);
         receiverPreKeyId = preKeyMsg.preKeyId() ?? 0;
     } else if (msgType === CiphertextMessageType.Whisper) {
+        if (typeof SignalMessage._fromSerialized !== 'function') throw new Error('SignalMessage._fromSerialized missing');
         const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
         messageIndex = signalMsg.counter();
     }
 
+    const ciphertextB64 = Buffer.from(ciphertextBytes).toString('base64');
+    const ownPubB64 = Buffer.from(ownPrivateKey.getPublicKey().serialized).toString('base64');
+    const ownPrivB64 = Buffer.from(ownPrivateKey.serialized).toString('base64');
+    const peerPubB64 = Buffer.from(peerIdentity.serialized).toString('base64');
+    console.log(`[Signal] ✉️ ENCRYPT for user ${peerUserId}:`);
+    console.log(`  🔑 My Public Key:   ${ownPubB64.substring(0, 40)}...`);
+    console.log(`  🔒 My Private Key:  ${ownPrivB64.substring(0, 20)}... (NEVER leaves device)`);
+    console.log(`  🔑 Peer Public Key: ${peerPubB64.substring(0, 40)}...`);
+    console.log(`  📝 Plaintext: "${plaintext}"`);
+    console.log(`  🔐 Ciphertext: ${ciphertextB64.substring(0, 60)}...`);
+    console.log(`  📦 Type: ${msgType === CiphertextMessageType.PreKey ? 'PreKey (first message)' : 'Whisper (ongoing)'}`);
+
     return {
-        ciphertext_b64: Buffer.from(ciphertextBytes).toString('base64'),
+        ciphertext_b64: ciphertextB64,
         header: {
             session_version: 3,
             sender_identity_pub_b64: Buffer.from(
@@ -296,6 +362,8 @@ export async function decrypt(
     ciphertextB64: string,
     _header: Record<string, any>,
 ): Promise<string> {
+    if (!cachedIdentity) throw new Error('SignalManager not initialized — call initialize(userId) first');
+
     const address = new ProtocolAddress(senderUserId.toString(), senderDeviceId);
     const ciphertextBytes = new Uint8Array(Buffer.from(ciphertextB64, 'base64'));
 
@@ -314,13 +382,25 @@ export async function decrypt(
             kyberPreKeyStore,
             [], // no kyber pre-key IDs
         );
-        console.log(`[Signal] Decrypted PreKey message from user ${senderUserId}`);
+        const myPrivKey = await identityStore.getIdentityKey();
+        const myPubB64 = Buffer.from(myPrivKey.getPublicKey().serialized).toString('base64');
+        const myPrivB64 = Buffer.from(myPrivKey.serialized).toString('base64');
+        const senderPubKey = await identityStore.getIdentity(address);
+        const senderPubB64 = senderPubKey ? Buffer.from(senderPubKey.serialized).toString('base64') : 'unknown';
+        console.log(`[Signal] 🔓 DECRYPT PreKey message from user ${senderUserId}:`);
+        console.log(`  🔑 My Public Key:     ${myPubB64.substring(0, 40)}...`);
+        console.log(`  🔒 My Private Key:    ${myPrivB64.substring(0, 20)}... (used to decrypt)`);
+        console.log(`  🔑 Sender Public Key: ${senderPubB64.substring(0, 40)}...`);
+        console.log(`  🔐 Ciphertext: ${ciphertextB64.substring(0, 60)}...`);
+        console.log(`  📝 Plaintext: "${Buffer.from(plaintext).toString('utf-8')}"`);
     } catch {
         // If that fails, parse as regular SignalMessage
         try {
             const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
             plaintext = await signalDecrypt(signalMsg, address, sessionStore, identityStore);
-            console.log(`[Signal] Decrypted Signal message from user ${senderUserId}`);
+            console.log(`[Signal] 🔓 DECRYPT Signal message from user ${senderUserId}:`);
+            console.log(`  🔒 Ciphertext: ${ciphertextB64.substring(0, 60)}...`);
+            console.log(`  📝 Plaintext: "${Buffer.from(plaintext).toString('utf-8')}"`);
         } catch (err: any) {
             console.error(`[Signal] Decryption failed for user ${senderUserId}:`, err.message);
             throw err;
@@ -356,7 +436,7 @@ export async function invalidateSession(peerUserId: number, peerDeviceId: number
  * Get the local identity public key (base64).
  */
 export async function getIdentityPublicKeyB64(): Promise<string> {
-    if (!cachedIdentity) await initialize();
+    if (!cachedIdentity) throw new Error('SignalManager not initialized');
     return Buffer.from(cachedIdentity!.identityKeyPair.publicKey.serialized).toString('base64');
 }
 
@@ -364,15 +444,16 @@ export async function getIdentityPublicKeyB64(): Promise<string> {
  * Get the local registration ID.
  */
 export async function getRegistrationId(): Promise<number> {
-    if (!cachedIdentity) await initialize();
+    if (!cachedIdentity) throw new Error('SignalManager not initialized');
     return cachedIdentity!.registrationId;
 }
 
 /**
- * Clear all signal data (used on logout/account reset).
+ * Reset the cached identity on logout.
+ * Keys are NOT deleted from storage so pending messages can be decrypted
+ * when the same user logs back in on this device.
  */
 export async function clearAll(): Promise<void> {
     cachedIdentity = null;
-    await clearSignalStorage();
-    console.log('[Signal] All data cleared');
+    console.log('[Signal] Session cache cleared (keys preserved in storage)');
 }

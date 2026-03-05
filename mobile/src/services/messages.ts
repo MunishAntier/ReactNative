@@ -4,6 +4,7 @@ export interface Message {
     id: number;
     conversation_id: number;
     sender_id: number;
+    sender_device_id?: number;
     receiver_id: number;
     client_message_id: string;
     ciphertext_b64: string;

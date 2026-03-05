@@ -17,12 +17,18 @@ export async function sendEncryptedMessage(
     receiverUserId: number,
     plaintext: string,
     conversationId: number | null = null,
+    preferredDeviceId: number | null = null,
 ): Promise<string> {
-    // Default device ID — server returns the latest device's ID in the key bundle
-    let peerDeviceId = 1;
+    // Determine device ID to use
+    let peerDeviceId = preferredDeviceId || 1;
 
     // Check if session exists
-    const exists = await SignalManager.hasSession(receiverUserId, peerDeviceId);
+    let exists = false;
+    try {
+        exists = await SignalManager.hasSession(receiverUserId, peerDeviceId);
+    } catch (err: any) {
+        console.warn('[Signal] hasSession check failed, will create new session:', err.message);
+    }
 
     if (!exists) {
         // No session — perform X3DH key agreement
@@ -31,13 +37,21 @@ export async function sendEncryptedMessage(
         await SignalManager.initSession(receiverUserId, peerBundle);
     }
 
-    // Encrypt using Double Ratchet
-    const { ciphertext_b64, header } = await SignalManager.encrypt(
-        receiverUserId,
-        peerDeviceId,
-        plaintext,
-    );
+    // Try to encrypt; if it fails due to missing peer identity key,
+    // re-create the session and try again
+    let encrypted;
+    try {
+        encrypted = await SignalManager.encrypt(receiverUserId, peerDeviceId, plaintext);
+    } catch (err: any) {
+        console.warn('[Signal] Encrypt failed, re-establishing session:', err.message);
+        // Re-fetch key bundle and re-create session
+        const peerBundle: PeerKeyBundle = await fetchPeerKeyBundle(receiverUserId);
+        peerDeviceId = peerBundle.device_id;
+        await SignalManager.initSession(receiverUserId, peerBundle);
+        encrypted = await SignalManager.encrypt(receiverUserId, peerDeviceId, plaintext);
+    }
 
+    const { ciphertext_b64, header } = encrypted;
     const clientMessageId = generateClientMessageId();
 
     // Send via WebSocket

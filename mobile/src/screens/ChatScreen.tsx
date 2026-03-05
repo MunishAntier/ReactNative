@@ -39,6 +39,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [securityWarning, setSecurityWarning] = useState(false);
+    const [lastPeerDeviceId, setLastPeerDeviceId] = useState(1); // Default to 1
     const flatListRef = useRef<FlatList>(null);
     const convIdRef = useRef(conversationId);
 
@@ -71,7 +72,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                                 msg.ciphertext_b64,
                                 msg.header,
                                 msg.sender_id,
+                                msg.sender_device_id || 1,
                             );
+                            if (msg.sender_device_id) setLastPeerDeviceId(msg.sender_device_id);
                             decrypted.push({
                                 id: msg.client_message_id,
                                 text: plaintext,
@@ -116,8 +119,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     data.ciphertext_b64,
                     data.header,
                     data.sender_user_id,
-                    data.sender_device_id,
+                    data.sender_device_id || 1,
                 );
+                if (data.sender_device_id) setLastPeerDeviceId(data.sender_device_id);
                 const newMsg: ChatMessage = {
                     id: data.client_message_id,
                     text: plaintext,
@@ -195,6 +199,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 peerUserId,
                 text,
                 convIdRef.current,
+                lastPeerDeviceId,
             );
             setMessages(prev =>
                 prev.map(m => (m.id === tempId ? { ...m, id: clientMessageId, status: 'sent' } : m)),

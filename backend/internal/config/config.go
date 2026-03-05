@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -43,6 +46,9 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	_ = godotenv.Load(filepath.Join("..", ".env"))
+	_ = godotenv.Load(".env")
+
 	baseRateLimit := getenvInt("RATE_LIMIT_PER_MINUTE", 30)
 	cfg := &Config{
 		AppEnv:                         getenv("APP_ENV", "development"),

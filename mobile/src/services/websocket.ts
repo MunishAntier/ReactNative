@@ -12,6 +12,7 @@ interface WebSocketConfig {
 
 class SecureWebSocket {
     private ws: WebSocket | null = null;
+    private userId: number | null = null;
     private handlers = new Map<string, Set<EventHandler>>();
     private reconnectAttempts = 0;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -21,14 +22,15 @@ class SecureWebSocket {
 
     constructor(config: WebSocketConfig = {}) {
         this.config = {
-            url: config.url || 'ws://10.0.2.2:8080/v1/ws',
+            url: config.url || 'ws://127.0.0.1:8080/v1/ws',
             reconnectMaxAttempts: config.reconnectMaxAttempts || 10,
             reconnectBaseDelay: config.reconnectBaseDelay || 1000,
             presencePingInterval: config.presencePingInterval || 60000,
         };
     }
 
-    connect(): void {
+    connect(userId: number): void {
+        this.userId = userId;
         const token = getAccessToken();
         if (!token) {
             console.warn('[WS] No access token, cannot connect');
@@ -52,8 +54,8 @@ class SecureWebSocket {
                 const type = data.type as string;
 
                 // Handle system events
-                if (type === 'prekeys.low') {
-                    replenishOneTimePreKeys().catch(err =>
+                if (type === 'prekeys.low' && this.userId) {
+                    replenishOneTimePreKeys(this.userId).catch(err =>
                         console.error('[WS] Failed to replenish pre-keys:', err),
                     );
                 }
@@ -111,7 +113,9 @@ class SecureWebSocket {
         );
 
         this.reconnectTimer = setTimeout(() => {
-            this.connect();
+            if (this.userId) {
+                this.connect(this.userId);
+            }
         }, delay);
     }
 
@@ -190,6 +194,7 @@ class SecureWebSocket {
         }
         this.ws?.close();
         this.ws = null;
+        this.userId = null;
     }
 
     get isConnected(): boolean {

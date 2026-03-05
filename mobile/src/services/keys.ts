@@ -29,9 +29,9 @@ export interface PeerKeyBundle {
  * Generate initial key bundle and upload to server.
  * Called once on first login (when no keys exist on server).
  */
-export async function generateAndUploadKeys(oneTimePreKeyCount: number = 100): Promise<KeyBundle> {
-    await SignalManager.initialize();
-    const bundle = await SignalManager.generateInitialBundle(oneTimePreKeyCount);
+export async function generateAndUploadKeys(userId: number, oneTimePreKeyCount: number = 100): Promise<KeyBundle> {
+    await SignalManager.initialize(userId);
+    const bundle = await SignalManager.generateInitialBundle(userId, oneTimePreKeyCount);
 
     const res = await apiFetch('/keys/upload', {
         method: 'POST',
@@ -49,8 +49,8 @@ export async function generateAndUploadKeys(oneTimePreKeyCount: number = 100): P
  * Generate and upload additional one-time pre-keys.
  * Called when server sends `prekeys.low` WebSocket notification.
  */
-export async function replenishOneTimePreKeys(count: number = 100): Promise<void> {
-    const keys = await SignalManager.generateOneTimePreKeys(count);
+export async function replenishOneTimePreKeys(userId: number, count: number = 100): Promise<void> {
+    const keys = await SignalManager.generateOneTimePreKeys(userId, count);
 
     const res = await apiFetch('/keys/one-time-prekeys/upload', {
         method: 'POST',
@@ -66,8 +66,8 @@ export async function replenishOneTimePreKeys(count: number = 100): Promise<void
  * Rotate signed pre-key and upload to server.
  * Should be called periodically (every 30 days) or on reinstall.
  */
-export async function rotateSignedPreKey(): Promise<void> {
-    const result = await SignalManager.rotateSignedPreKey();
+export async function rotateSignedPreKey(userId: number): Promise<void> {
+    const result = await SignalManager.rotateSignedPreKey(userId);
 
     const res = await apiFetch('/keys/signed-prekey/rotate', {
         method: 'POST',
@@ -94,7 +94,29 @@ export async function fetchPeerKeyBundle(userId: number): Promise<PeerKeyBundle>
     const res = await apiFetch(`/keys/${userId}`);
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to fetch key bundle');
+        const message = err.error || 'Failed to fetch key bundle';
+        if (res.status === 404) {
+            throw new Error(`BUNDLE_NOT_FOUND: User ${userId} has no keys on the server.`);
+        }
+        throw new Error(message);
     }
     return res.json();
+}
+
+/**
+ * Check if current user's keys are on the server; if not, upload them.
+ */
+export async function checkAndUploadKeys(userId: number): Promise<void> {
+    try {
+        console.log(`[Keys] Checking if keys for user ${userId} exist on server...`);
+        await fetchPeerKeyBundle(userId);
+        console.log('[Keys] Keys found on server');
+    } catch (err: any) {
+        if (err.message?.includes('BUNDLE_NOT_FOUND')) {
+            console.warn('[Keys] Keys missing on server, uploading now...');
+            await generateAndUploadKeys(userId);
+        } else {
+            console.error('[Keys] Failed to check for existing keys:', err.message);
+        }
+    }
 }

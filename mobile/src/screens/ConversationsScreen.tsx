@@ -59,7 +59,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
             const user = await lookupUser(email);
             setShowNewChat(false);
             setNewChatEmail('');
-            onStartNewChat(user.user_id);
+            onStartNewChat(user.id);
         } catch {
             Alert.alert('Error', 'User not found');
         }

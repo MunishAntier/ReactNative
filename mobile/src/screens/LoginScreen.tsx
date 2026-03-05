@@ -53,16 +53,33 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
         setLoading(true);
         try {
-            const deviceUuid = `${Platform.OS}-${Date.now()}`;
+            // Use a STABLE device UUID so we reuse the same server-side device
+            // record across logins.  Creating a new device on every login caused
+            // "bundle not found" and decryption failures.
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            let deviceUuid = await AsyncStorage.getItem('device_uuid');
+            if (!deviceUuid) {
+                deviceUuid = `${Platform.OS}-${Date.now()}`;
+                await AsyncStorage.setItem('device_uuid', deviceUuid);
+                console.log('[Login] Generated new device UUID:', deviceUuid);
+            } else {
+                console.log('[Login] Reusing device UUID:', deviceUuid);
+            }
             const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
 
-            // Initialize Signal and upload keys
-            // Keys are always uploaded after verification to ensure the server has fresh keys
+            // Initialize Signal — only upload keys if this is a brand new identity.
+            // Uploading keys every login overwrites local pre-keys, making pending
+            // messages undecryptable (SignalError 6).
             try {
-                await generateAndUploadKeys(100);
-                console.log('[Login] Keys generated and uploaded');
+                const isNewIdentity = await SignalManager.initialize(res.user_id);
+                if (isNewIdentity) {
+                    await generateAndUploadKeys(res.user_id, 100);
+                    console.log('[Login] NEW identity — keys generated and uploaded');
+                } else {
+                    console.log('[Login] Existing identity loaded — skipping key upload');
+                }
             } catch (keyErr: any) {
-                console.warn('[Login] Key upload failed (may already exist):', keyErr.message);
+                console.warn('[Login] Signal init/key upload failed:', keyErr.message);
             }
 
             onLoginSuccess(res.user_id, res.device_id);

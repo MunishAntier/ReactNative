@@ -3,7 +3,7 @@ services:
     image: mysql:8.0
     container_name: securemsg-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: securemsg
     ports:
       - "3306:3306"
