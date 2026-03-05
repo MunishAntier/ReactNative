@@ -7,9 +7,9 @@ services:
       MYSQL_DATABASE: securemsg
     ports:
       - "3306:3306"
-    command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
+    command: ["mysqld", "--mysql-native-password=ON"]
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 10

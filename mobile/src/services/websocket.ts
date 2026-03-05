@@ -1,4 +1,5 @@
-import { getAccessToken } from './api';
+import { getAccessToken, loadTokens } from './api';
+import { WS_URL } from './config';
 import { replenishOneTimePreKeys } from './keys';
 
 type EventHandler = (data: any) => void;
@@ -8,6 +9,7 @@ interface WebSocketConfig {
     reconnectMaxAttempts?: number;
     reconnectBaseDelay?: number;
     presencePingInterval?: number;
+    pongTimeoutMs?: number;
 }
 
 class SecureWebSocket {
@@ -17,15 +19,17 @@ class SecureWebSocket {
     private reconnectAttempts = 0;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private presenceTimer: ReturnType<typeof setInterval> | null = null;
+    private pongTimer: ReturnType<typeof setTimeout> | null = null;
     private intentionallyClosed = false;
     private config: Required<WebSocketConfig>;
 
     constructor(config: WebSocketConfig = {}) {
         this.config = {
-            url: config.url || 'ws://127.0.0.1:8080/v1/ws',
+            url: config.url || WS_URL,
             reconnectMaxAttempts: config.reconnectMaxAttempts || 10,
             reconnectBaseDelay: config.reconnectBaseDelay || 1000,
             presencePingInterval: config.presencePingInterval || 60000,
+            pongTimeoutMs: config.pongTimeoutMs || 10000,
         };
     }
 
@@ -53,6 +57,9 @@ class SecureWebSocket {
                 const data = JSON.parse(event.data as string);
                 const type = data.type as string;
 
+                // Clear pong timeout on any server message (acts as pong)
+                this.clearPongTimer();
+
                 // Handle system events
                 if (type === 'prekeys.low' && this.userId) {
                     replenishOneTimePreKeys(this.userId).catch(err =>
@@ -75,6 +82,7 @@ class SecureWebSocket {
         this.ws.onclose = (event: WebSocketCloseEvent) => {
             console.log('[WS] Closed:', event.code, event.reason);
             this.stopPresencePing();
+            this.clearPongTimer();
             this.emit('connection', { status: 'disconnected' });
             if (!this.intentionallyClosed) {
                 this.scheduleReconnect();
@@ -86,6 +94,9 @@ class SecureWebSocket {
         this.stopPresencePing();
         this.presenceTimer = setInterval(() => {
             this.send({ type: 'presence.ping' });
+            // Start pong timeout — if no message from server within timeout,
+            // consider the connection dead (Issue 21)
+            this.startPongTimer();
         }, this.config.presencePingInterval);
     }
 
@@ -96,11 +107,33 @@ class SecureWebSocket {
         }
     }
 
-    private scheduleReconnect(): void {
+    private startPongTimer(): void {
+        this.clearPongTimer();
+        this.pongTimer = setTimeout(() => {
+            console.warn('[WS] Pong timeout — server unresponsive, closing connection');
+            this.ws?.close(4000, 'pong timeout');
+        }, this.config.pongTimeoutMs);
+    }
+
+    private clearPongTimer(): void {
+        if (this.pongTimer) {
+            clearTimeout(this.pongTimer);
+            this.pongTimer = null;
+        }
+    }
+
+    private async scheduleReconnect(): Promise<void> {
         if (this.reconnectAttempts >= this.config.reconnectMaxAttempts) {
             console.warn('[WS] Max reconnect attempts reached');
             this.emit('connection', { status: 'failed' });
             return;
+        }
+
+        // Refresh access token before reconnecting (Issue 9)
+        try {
+            await loadTokens();
+        } catch (err) {
+            console.warn('[WS] Token refresh before reconnect failed:', err);
         }
 
         const delay =
@@ -188,6 +221,7 @@ class SecureWebSocket {
     disconnect(): void {
         this.intentionallyClosed = true;
         this.stopPresencePing();
+        this.clearPongTimer();
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;

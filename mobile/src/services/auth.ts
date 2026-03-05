@@ -1,4 +1,5 @@
 import { apiFetch, saveTokens, clearTokens } from './api';
+import { API_BASE_URL } from './config';
 import Keychain from 'react-native-keychain';
 
 export interface AuthStartResponse {
@@ -49,7 +50,7 @@ export async function loadUserInfo(): Promise<{ userId: number; deviceId: number
  * @param identifier - email or phone number
  */
 export async function startAuth(identifier: string): Promise<AuthStartResponse> {
-    const res = await fetch('http://127.0.0.1:8080/v1/auth/start', {
+    const res = await fetch(`${API_BASE_URL}/auth/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier }),
@@ -70,7 +71,7 @@ export async function verifyOTP(
     deviceUuid: string,
     platform: string = 'android',
 ): Promise<AuthVerifyResponse> {
-    const res = await fetch('http://127.0.0.1:8080/v1/auth/verify', {
+    const res = await fetch(`${API_BASE_URL}/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +108,7 @@ export async function logout(): Promise<void> {
 /**
  * Get current user info from the server.
  */
-export async function getMe(): Promise<any> {
+export async function getMe(): Promise<{ id: number; email?: string; phone?: string }> {
     const res = await apiFetch('/me');
     if (!res.ok) throw new Error('Failed to fetch user info');
     return res.json();
@@ -116,7 +117,7 @@ export async function getMe(): Promise<any> {
 /**
  * Lookup a user by email or phone.
  */
-export async function lookupUser(identifier: string): Promise<any> {
+export async function lookupUser(identifier: string): Promise<{ id: number; email?: string; phone?: string }> {
     const res = await apiFetch(`/users/lookup?identifier=${encodeURIComponent(identifier)}`);
     if (!res.ok) throw new Error('User not found');
     return res.json();

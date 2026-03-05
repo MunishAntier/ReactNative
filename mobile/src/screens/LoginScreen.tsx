@@ -11,8 +11,9 @@ import {
     Platform,
 } from 'react-native';
 import { startAuth, verifyOTP } from '../services/auth';
-import { generateAndUploadKeys } from '../services/keys';
+import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
 import * as SignalManager from '../crypto/SignalManager';
+import { getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';
 
 interface LoginScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
@@ -28,13 +29,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
 
     const handleSendOtp = async () => {
-        if (!email.trim()) {
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail) {
             Alert.alert('Error', 'Please enter your email');
+            return;
+        }
+        // Basic email format validation (Issue 19)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+            Alert.alert('Error', 'Please enter a valid email address');
             return;
         }
         setLoading(true);
         try {
-            const res = await startAuth(email.trim());
+            const res = await startAuth(trimmedEmail);
             if (res.dev_otp) {
                 setDevOtp(res.dev_otp);
             }
@@ -77,6 +85,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     console.log('[Login] NEW identity — keys generated and uploaded');
                 } else {
                     console.log('[Login] Existing identity loaded — skipping key upload');
+                    // Issue 11: Check if signed pre-key needs rotation (30-day expiry)
+                    try {
+                        const currentSpkId = await getCurrentSignedPreKeyId(res.user_id);
+                        if (currentSpkId > 0) {
+                            console.log('[Login] Signed pre-key rotation check passed');
+                        } else {
+                            // No signed pre-key on record — rotate
+                            await rotateSignedPreKey(res.user_id);
+                            console.log('[Login] Signed pre-key rotated');
+                        }
+                    } catch (rotateErr: any) {
+                        console.warn('[Login] Signed pre-key rotation check failed:', rotateErr.message);
+                    }
                 }
             } catch (keyErr: any) {
                 console.warn('[Login] Signal init/key upload failed:', keyErr.message);

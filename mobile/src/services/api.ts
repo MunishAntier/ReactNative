@@ -1,6 +1,7 @@
 import Keychain from 'react-native-keychain';
+import { API_BASE_URL } from './config';
 
-const BASE_URL = 'http://127.0.0.1:8080/v1'; // Local backend on host machine
+const BASE_URL = API_BASE_URL;
 
 interface TokenPair {
     accessToken: string;

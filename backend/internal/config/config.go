@@ -46,8 +46,15 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load(filepath.Join("..", ".env"))
-	_ = godotenv.Load(".env")
+	// Try to load .env from multiple locations for robustness
+	_ = godotenv.Load(".env")                      // current working directory
+	_ = godotenv.Load(filepath.Join("..", ".env")) // parent directory (when running from backend/)
+
+	// Also try relative to the executable path
+	if exe, err := os.Executable(); err == nil {
+		_ = godotenv.Load(filepath.Join(filepath.Dir(exe), ".env"))
+		_ = godotenv.Load(filepath.Join(filepath.Dir(exe), "..", ".env"))
+	}
 
 	baseRateLimit := getenvInt("RATE_LIMIT_PER_MINUTE", 30)
 	cfg := &Config{

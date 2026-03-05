@@ -10,6 +10,7 @@ import {
     Platform,
     Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { websocket } from '../services/websocket';
 import { sendEncryptedMessage, decryptIncomingMessage } from '../services/signal';
 import { syncMessages } from '../services/messages';
@@ -30,6 +31,31 @@ interface ChatScreenProps {
     onGoBack: () => void;
 }
 
+// ── Local message cache helpers (Issue 15) ──
+
+function cacheKey(myUserId: number, peerUserId: number): string {
+    const a = Math.min(myUserId, peerUserId);
+    const b = Math.max(myUserId, peerUserId);
+    return `chat_cache:${a}:${b}`;
+}
+
+function syncTimestampKey(myUserId: number): string {
+    return `last_sync_ts:${myUserId}`;
+}
+
+async function loadCachedMessages(myUserId: number, peerUserId: number): Promise<ChatMessage[]> {
+    try {
+        const raw = await AsyncStorage.getItem(cacheKey(myUserId, peerUserId));
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+async function saveCachedMessages(myUserId: number, peerUserId: number, msgs: ChatMessage[]): Promise<void> {
+    // Keep only the latest 500 messages per conversation
+    const trimmed = msgs.slice(-500);
+    await AsyncStorage.setItem(cacheKey(myUserId, peerUserId), JSON.stringify(trimmed));
+}
+
 const ChatScreen: React.FC<ChatScreenProps> = ({
     conversationId,
     peerUserId,
@@ -39,68 +65,95 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [securityWarning, setSecurityWarning] = useState(false);
-    const [lastPeerDeviceId, setLastPeerDeviceId] = useState(1); // Default to 1
+    const lastPeerDeviceIdRef = useRef(1); // Use ref to avoid stale closure (Issue 14)
     const flatListRef = useRef<FlatList>(null);
     const convIdRef = useRef(conversationId);
 
-    // Load existing messages via offline sync
+    // Load existing messages: first from local cache, then sync new ones (Issue 13, 15)
     useEffect(() => {
         const loadMessages = async () => {
+            // Step 1: Load from local cache immediately
+            const cached = await loadCachedMessages(myUserId, peerUserId);
+            if (cached.length > 0) {
+                setMessages(cached);
+            }
+
+            // Step 2: Sync only NEW messages from server (Issue 13)
             try {
-                const synced = await syncMessages('2000-01-01T00:00:00Z', 200);
+                const lastSync = await AsyncStorage.getItem(syncTimestampKey(myUserId));
+                const since = lastSync || '2000-01-01T00:00:00Z';
+
+                const synced = await syncMessages(since, 200);
                 const relevant = synced.filter(
                     m =>
                         (m.sender_id === peerUserId && m.receiver_id === myUserId) ||
                         (m.sender_id === myUserId && m.receiver_id === peerUserId),
                 );
 
-                const decrypted: ChatMessage[] = [];
-                for (const msg of relevant) {
-                    try {
-                        if (msg.sender_id === myUserId) {
-                            // Our own messages — can't decrypt (no session for self)
-                            decrypted.push({
-                                id: msg.client_message_id,
-                                text: '[sent message]',
-                                isMine: true,
+                if (relevant.length > 0) {
+                    // Build a set of existing message IDs to avoid duplicates
+                    const existingIds = new Set(cached.map(m => m.id));
+                    const newMessages: ChatMessage[] = [];
+
+                    for (const msg of relevant) {
+                        if (existingIds.has(msg.client_message_id)) continue;
+                        try {
+                            if (msg.sender_id === myUserId) {
+                                // Own messages — store with placeholder text (Issue 12)
+                                newMessages.push({
+                                    id: msg.client_message_id,
+                                    text: '[sent message]',
+                                    isMine: true,
+                                    timestamp: msg.created_at,
+                                    status: msg.read_at ? 'read' : msg.delivered_at ? 'delivered' : 'sent',
+                                    serverMessageId: msg.id,
+                                });
+                            } else {
+                                const plaintext = await decryptIncomingMessage(
+                                    msg.ciphertext_b64,
+                                    msg.header,
+                                    msg.sender_id,
+                                    msg.sender_device_id || 1,
+                                );
+                                if (msg.sender_device_id) lastPeerDeviceIdRef.current = msg.sender_device_id;
+                                newMessages.push({
+                                    id: msg.client_message_id,
+                                    text: plaintext,
+                                    isMine: false,
+                                    timestamp: msg.created_at,
+                                    status: 'delivered',
+                                    serverMessageId: msg.id,
+                                });
+                            }
+                        } catch (err: any) {
+                            if (err.message?.startsWith('IDENTITY_CHANGED')) {
+                                setSecurityWarning(true);
+                            }
+                            newMessages.push({
+                                id: msg.client_message_id || `msg-${msg.id}`,
+                                text: '🔒 Unable to decrypt',
+                                isMine: msg.sender_id === myUserId,
                                 timestamp: msg.created_at,
-                                status: msg.read_at ? 'read' : msg.delivered_at ? 'delivered' : 'sent',
-                                serverMessageId: msg.id,
-                            });
-                        } else {
-                            const plaintext = await decryptIncomingMessage(
-                                msg.ciphertext_b64,
-                                msg.header,
-                                msg.sender_id,
-                                msg.sender_device_id || 1,
-                            );
-                            if (msg.sender_device_id) setLastPeerDeviceId(msg.sender_device_id);
-                            decrypted.push({
-                                id: msg.client_message_id,
-                                text: plaintext,
-                                isMine: false,
-                                timestamp: msg.created_at,
-                                status: 'delivered',
+                                status: 'failed',
                                 serverMessageId: msg.id,
                             });
                         }
-                    } catch (err: any) {
-                        if (err.message?.startsWith('IDENTITY_CHANGED')) {
-                            setSecurityWarning(true);
-                        }
-                        decrypted.push({
-                            id: msg.client_message_id || `msg-${msg.id}`,
-                            text: '🔒 Unable to decrypt',
-                            isMine: msg.sender_id === myUserId,
-                            timestamp: msg.created_at,
-                            status: 'failed',
-                            serverMessageId: msg.id,
-                        });
+                    }
+
+                    if (newMessages.length > 0) {
+                        const merged = [...cached, ...newMessages];
+                        setMessages(merged);
+                        await saveCachedMessages(myUserId, peerUserId, merged);
                     }
                 }
-                setMessages(decrypted);
+
+                // Update last sync timestamp
+                await AsyncStorage.setItem(
+                    syncTimestampKey(myUserId),
+                    new Date().toISOString(),
+                );
             } catch (err) {
-                console.error('Failed to load messages:', err);
+                console.error('Failed to sync messages:', err);
             }
         };
         loadMessages();
@@ -121,7 +174,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     data.sender_user_id,
                     data.sender_device_id || 1,
                 );
-                if (data.sender_device_id) setLastPeerDeviceId(data.sender_device_id);
+                if (data.sender_device_id) lastPeerDeviceIdRef.current = data.sender_device_id;
                 const newMsg: ChatMessage = {
                     id: data.client_message_id,
                     text: plaintext,
@@ -130,7 +183,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     status: 'delivered',
                     serverMessageId: data.server_message_id,
                 };
-                setMessages(prev => [...prev, newMsg]);
+                setMessages(prev => {
+                    const updated = [...prev, newMsg];
+                    // Persist to local cache (Issue 15)
+                    saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
+                    return updated;
+                });
 
                 // Ack delivery
                 websocket.ackDelivered(data.server_message_id);
@@ -177,8 +235,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             unsubStatus();
             unsubIdentity();
         };
-    }, [peerUserId]);
+    }, [peerUserId, myUserId]);
 
+    // Fix Issue 14: useCallback now uses refs for mutable values (no stale closure)
     const handleSend = useCallback(async () => {
         const text = inputText.trim();
         if (!text) return;
@@ -199,18 +258,24 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 peerUserId,
                 text,
                 convIdRef.current,
-                lastPeerDeviceId,
+                myUserId,
+                lastPeerDeviceIdRef.current || null,
             );
-            setMessages(prev =>
-                prev.map(m => (m.id === tempId ? { ...m, id: clientMessageId, status: 'sent' } : m)),
-            );
+            setMessages(prev => {
+                const updated = prev.map(m =>
+                    m.id === tempId ? { ...m, id: clientMessageId, text, status: 'sent' as const } : m,
+                );
+                // Persist sent message with its plaintext (Issue 12)
+                saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
+                return updated;
+            });
         } catch (err: any) {
             setMessages(prev =>
                 prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)),
             );
             Alert.alert('Send Failed', err.message);
         }
-    }, [inputText, peerUserId]);
+    }, [inputText, peerUserId, myUserId]);
 
     const statusIcon = (status: ChatMessage['status']) => {
         switch (status) {

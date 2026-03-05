@@ -97,11 +97,30 @@ export class AppIdentityKeyStore extends IdentityKeyStore {
     }
 
     async isTrustedIdentity(
-        _name: ProtocolAddress,
-        _key: PublicKey,
-        _direction: Direction
+        name: ProtocolAddress,
+        key: PublicKey,
+        direction: Direction
     ): Promise<boolean> {
-        // Trust on first use (TOFU)
+        // For outgoing (Sending) direction: always trust.
+        // We are the initiator in X3DH — we trust the server-provided bundle.
+        // TOFU enforcement is only meaningful for incoming messages.
+        if (direction === Direction.Sending) {
+            return true;
+        }
+
+        // For incoming (Receiving) direction: Trust On First Use.
+        // Accept the first key seen, reject if it changes.
+        const existing = await this.getIdentity(name);
+        if (!existing) {
+            // First time seeing this sender — trust automatically
+            return true;
+        }
+        const existingB64 = Buffer.from(existing.serialized).toString('base64');
+        const newB64 = Buffer.from(key.serialized).toString('base64');
+        if (existingB64 !== newB64) {
+            console.warn(`[Signal] TOFU: Identity key CHANGED for ${name.name}:${name.deviceId}`);
+            return false;
+        }
         return true;
     }
 
@@ -212,7 +231,7 @@ export async function initializeIdentity(userId: number): Promise<{
     }
 
     // Generate new identity
-    const { generateRegistrationID } = require('react-native-libsignal-client');
+    const { generateRegistrationID } = await import('react-native-libsignal-client');
     const pair = IdentityKeyPair.generate();
     const regId = generateRegistrationID();
 
@@ -222,14 +241,22 @@ export async function initializeIdentity(userId: number): Promise<{
     return { identityKeyPair: pair, registrationId: regId, isNew: true };
 }
 
+// Pre-key counter lock to prevent concurrent increments (Issue 10)
+let _preKeyIdPromise: Promise<number> = Promise.resolve(0);
+
 /**
  * Get (and increment) the pre-key counter for unique IDs.
+ * Uses a sequential promise chain to avoid race conditions.
  */
 export async function getNextPreKeyId(userId: number): Promise<number> {
-    const val = await AsyncStorage.getItem(`${getUserPrefix(userId)}${KEY_PREKEY_COUNTER}`);
-    const current = val ? parseInt(val, 10) : 1;
-    await AsyncStorage.setItem(`${getUserPrefix(userId)}${KEY_PREKEY_COUNTER}`, (current + 1).toString());
-    return current;
+    const result = _preKeyIdPromise.then(async () => {
+        const val = await AsyncStorage.getItem(`${getUserPrefix(userId)}${KEY_PREKEY_COUNTER}`);
+        const current = val ? parseInt(val, 10) : 1;
+        await AsyncStorage.setItem(`${getUserPrefix(userId)}${KEY_PREKEY_COUNTER}`, (current + 1).toString());
+        return current;
+    });
+    _preKeyIdPromise = result.catch(() => 0); // Reset chain on error
+    return result;
 }
 
 /**
