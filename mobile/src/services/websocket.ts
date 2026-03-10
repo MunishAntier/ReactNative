@@ -1,6 +1,6 @@
 import { getAccessToken, loadTokens } from './api';
 import { WS_URL } from './config';
-import { replenishOneTimePreKeys } from './keys';
+import { replenishOneTimePreKeys, checkAndReplenishPreKeys } from './keys';
 
 type EventHandler = (data: any) => void;
 
@@ -50,6 +50,14 @@ class SecureWebSocket {
             this.reconnectAttempts = 0;
             this.emit('connection', { status: 'connected' });
             this.startPresencePing();
+
+            // Check pre-key count on every connect/reconnect.
+            // Covers the case where 'prekeys.low' was missed while offline.
+            if (this.userId) {
+                checkAndReplenishPreKeys(this.userId).catch(err =>
+                    console.warn('[WS] Pre-key check on connect failed:', err),
+                );
+            }
         };
 
         this.ws.onmessage = (event: WebSocketMessageEvent) => {
@@ -197,6 +205,36 @@ class SecureWebSocket {
         this.send({
             type: 'message.ack.read',
             server_message_id: serverMessageId,
+        });
+    }
+
+    /**
+     * Request message sync over WebSocket (replaces HTTP sync).
+     * Sends 'messages.sync' and waits for 'messages.sync.response'.
+     */
+    requestSync(since: string, limit: number = 200, timeoutMs: number = 10000): Promise<any[]> {
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                unsubResponse();
+                unsubError();
+                reject(new Error('Sync request timed out'));
+            }, timeoutMs);
+
+            const unsubResponse = this.on('messages.sync.response', (data) => {
+                clearTimeout(timer);
+                unsubResponse();
+                unsubError();
+                resolve(data.items || []);
+            });
+
+            const unsubError = this.on('messages.sync.error', (data) => {
+                clearTimeout(timer);
+                unsubResponse();
+                unsubError();
+                reject(new Error(data.error || 'Sync failed'));
+            });
+
+            this.send({ type: 'messages.sync', since, limit });
         });
     }
 

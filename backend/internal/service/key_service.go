@@ -94,3 +94,7 @@ func (s *KeyService) GetBundle(ctx context.Context, targetUserID int64) (*reposi
 	}
 	return bundle, nil
 }
+
+func (s *KeyService) GetPreKeyCount(ctx context.Context, deviceID int64) (int64, error) {
+	return s.store.CountAvailablePreKeys(ctx, deviceID)
+}

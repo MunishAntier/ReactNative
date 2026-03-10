@@ -201,3 +201,13 @@ func (h *Handler) GetKeyBundle(c *gin.Context) {
 	})
 	c.JSON(http.StatusOK, bundle)
 }
+
+func (h *Handler) GetPreKeyCount(c *gin.Context) {
+	deviceID := middleware.CurrentDeviceID(c)
+	count, err := h.Keys.GetPreKeyCount(c.Request.Context(), deviceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
+}

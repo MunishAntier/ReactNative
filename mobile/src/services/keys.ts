@@ -63,6 +63,30 @@ export async function replenishOneTimePreKeys(userId: number, count: number = 10
 }
 
 /**
+ * Check server-side pre-key count and replenish if below threshold.
+ * Called on login and WebSocket reconnect to cover the case where
+ * 'prekeys.low' events were missed while the device was offline.
+ */
+export async function checkAndReplenishPreKeys(userId: number, threshold: number = 20): Promise<void> {
+    try {
+        const res = await apiFetch('/keys/prekey-count');
+        if (!res.ok) {
+            console.warn('[Keys] Failed to check pre-key count:', res.status);
+            return;
+        }
+        const data = await res.json();
+        const count = data.count as number;
+        console.log(`[Keys] Server pre-key count: ${count}`);
+        if (count < threshold) {
+            console.log(`[Keys] Below threshold (${threshold}), replenishing...`);
+            await replenishOneTimePreKeys(userId);
+        }
+    } catch (err) {
+        console.warn('[Keys] Failed to check/replenish pre-keys:', err);
+    }
+}
+
+/**
  * Rotate signed pre-key and upload to server.
  * Should be called periodically (every 30 days) or on reinstall.
  */

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,6 +44,12 @@ type wsMessageSend struct {
 type wsAck struct {
 	Type            string `json:"type"`
 	ServerMessageID int64  `json:"server_message_id"`
+}
+
+type wsMessageSync struct {
+	Type  string `json:"type"`
+	Since string `json:"since"`
+	Limit int    `json:"limit"`
 }
 
 func (h *Handler) WebSocket(c *gin.Context) {
@@ -171,6 +178,43 @@ func (h *Handler) WebSocket(c *gin.Context) {
 		case "presence.ping":
 			_ = h.Redis.Set(context.Background(), fmt.Sprintf("presence:user:%d", claims.UID), "online", 120*time.Second).Err()
 			return conn.WriteJSON(map[string]any{"type": "presence.pong", "ts": time.Now().UTC()})
+		case "messages.sync":
+			var syncReq wsMessageSync
+			if err := json.Unmarshal(payload, &syncReq); err != nil {
+				return err
+			}
+			since, parseErr := time.Parse(time.RFC3339, syncReq.Since)
+			if parseErr != nil {
+				return conn.WriteJSON(map[string]any{"type": "messages.sync.error", "error": "since must be RFC3339"})
+			}
+			limit := syncReq.Limit
+			if limit <= 0 || limit > 500 {
+				limit = 200
+			}
+			messages, syncErr := h.Message.Sync(c.Request.Context(), claims.UID, since, limit)
+			if syncErr != nil {
+				return conn.WriteJSON(map[string]any{"type": "messages.sync.error", "error": syncErr.Error()})
+			}
+			// Convert messages to response format with base64 ciphertext
+			items := make([]map[string]any, 0, len(messages))
+			for _, m := range messages {
+				items = append(items, map[string]any{
+					"id":                m.ID,
+					"conversation_id":   m.ConversationID,
+					"sender_id":         m.SenderID,
+					"receiver_id":       m.ReceiverID,
+					"client_message_id": m.ClientMessageID,
+					"ciphertext_b64":    base64.StdEncoding.EncodeToString(m.Ciphertext),
+					"header":            m.HeaderJSON,
+					"created_at":        m.ServerReceivedAt,
+					"delivered_at":      m.DeliveredAt,
+					"read_at":           m.ReadAt,
+				})
+			}
+			return conn.WriteJSON(map[string]any{
+				"type":  "messages.sync.response",
+				"items": items,
+			})
 		default:
 			return errors.New("unsupported event type")
 		}

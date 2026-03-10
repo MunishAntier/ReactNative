@@ -73,6 +73,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, redis *redis.Client) *App {
 	authed.POST("/keys/upload", h.UploadKeys)
 	authed.POST("/keys/signed-prekey/rotate", h.RotateSignedPrekey)
 	authed.POST("/keys/one-time-prekeys/upload", h.UploadOneTimePrekeys)
+	authed.GET("/keys/prekey-count", h.GetPreKeyCount)
 	authed.GET("/keys/:user_id", middleware.RateLimit(redis, "keys_fetch", cfg.RateLimitKeysFetchPerMinute), h.GetKeyBundle)
 	authed.GET("/conversations", h.ListConversations)
 	authed.GET("/messages/sync", middleware.RateLimit(redis, "messages_sync", cfg.RateLimitMessagesSyncPerMinute), h.SyncMessages)

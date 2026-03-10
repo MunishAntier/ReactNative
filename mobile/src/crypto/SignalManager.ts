@@ -448,11 +448,15 @@ export async function getRegistrationId(): Promise<number> {
 }
 
 /**
- * Reset the cached identity on logout.
- * Keys are NOT deleted from storage so pending messages can be decrypted
- * when the same user logs back in on this device.
+ * Clear all Signal data on logout / account reset / device removal.
+ * Deletes identity key from Keychain and all Signal data from AsyncStorage.
+ * This forces a fresh identity on next login.
  */
 export async function clearAll(): Promise<void> {
+    // Delete identity key from Keychain + all Signal data from AsyncStorage
+    if (cachedIdentity) {
+        await clearSignalStorage(cachedIdentity.userId);
+    }
     cachedIdentity = null;
     // Reset store singletons to prevent stale references on re-login
     identityStore = undefined as any;
@@ -460,5 +464,5 @@ export async function clearAll(): Promise<void> {
     preKeyStore = undefined as any;
     signedPreKeyStore = undefined as any;
     kyberPreKeyStore = undefined as any;
-    console.log('[Signal] Session cache and stores cleared (keys preserved in storage)');
+    console.log('[Signal] All Signal data cleared (identity key deleted from Keychain)');
 }

@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import { websocket } from './websocket';
 
 export interface Message {
     id: number;
@@ -25,13 +26,23 @@ export interface ConversationItem {
 }
 
 /**
- * Sync messages since a given timestamp (offline sync).
- * Backend returns { items: [...] }
+ * Sync messages since a given timestamp.
+ * Uses WebSocket (preferred) with HTTP fallback.
  */
 export async function syncMessages(
     since: string,
     limit: number = 200,
 ): Promise<Message[]> {
+    // Prefer WebSocket sync (persistent connection, no extra HTTP call)
+    if (websocket.isConnected) {
+        try {
+            return await websocket.requestSync(since, limit);
+        } catch (err) {
+            console.warn('[Messages] WebSocket sync failed, falling back to HTTP:', err);
+        }
+    }
+
+    // Fallback to HTTP API
     const res = await apiFetch(
         `/messages/sync?since=${encodeURIComponent(since)}&limit=${limit}`,
     );
