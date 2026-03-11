@@ -471,8 +471,12 @@ export async function decrypt(
         const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
 
         // ─── Log Whisper Decrypt Details ───
-        const counter = signalMsg.counter();
-        const ver = signalMsg.messageVersion();
+        // Note: counter() and messageVersion() call native methods that may
+        // not be implemented in the iOS bridge, so wrap in try/catch.
+        let counter: number | string = '?';
+        let ver: number | string = '?';
+        try { counter = signalMsg.counter(); } catch { /* not implemented in native module */ }
+        try { ver = signalMsg.messageVersion(); } catch { /* not implemented in native module */ }
         console.log(`\n${LINE}`);
         console.log(`[Signal🔐] DECRYPT  |  User ${senderUserId} → Me  |  Protocol: Double Ratchet + Whisper`);
         console.log(LINE);
