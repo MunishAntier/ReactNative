@@ -23,13 +23,14 @@ type MessageService struct {
 }
 
 type SendMessageInput struct {
-	SenderID        int64
-	SenderDeviceID  int64
-	ReceiverUserID  int64
-	ClientMessageID string
-	CiphertextB64   string
-	Header          domain.MessageHeader
-	SentAtClient    *time.Time
+	SenderID         int64
+	SenderDeviceID   int64
+	ReceiverUserID   int64
+	ReceiverDeviceID int64
+	ClientMessageID  string
+	CiphertextB64    string
+	Header           domain.MessageHeader
+	SentAtClient     *time.Time
 }
 
 func NewMessageService(store *repository.Store, hub *ws.Hub, notifier notifications.Service, retentionDays int) *MessageService {
@@ -72,9 +73,28 @@ func (s *MessageService) Send(ctx context.Context, input SendMessageInput) (*dom
 		return nil, false, err
 	}
 	if input.Header.ReceiverOneTimePreKeyID > 0 {
-		_ = s.store.MarkOneTimePreKeyUsed(ctx, input.ReceiverUserID, input.Header.ReceiverOneTimePreKeyID, now)
+		if input.ReceiverDeviceID > 0 {
+			_ = s.store.MarkOneTimePreKeyUsedByDevice(ctx, input.ReceiverDeviceID, input.Header.ReceiverOneTimePreKeyID, now)
+		} else {
+			_ = s.store.MarkOneTimePreKeyUsed(ctx, input.ReceiverUserID, input.Header.ReceiverOneTimePreKeyID, now)
+		}
 	}
-	if s.hub.IsOnline(input.ReceiverUserID) {
+	if input.ReceiverDeviceID > 0 && s.hub.IsDeviceOnline(input.ReceiverUserID, input.ReceiverDeviceID) {
+		event := map[string]any{
+			"type":               "message.new",
+			"server_message_id":  stored.ID,
+			"conversation_id":    stored.ConversationID,
+			"sender_user_id":     stored.SenderID,
+			"sender_device_id":   input.SenderDeviceID,
+			"receiver_device_id": input.ReceiverDeviceID,
+			"client_message_id":  stored.ClientMessageID,
+			"ciphertext_b64":     input.CiphertextB64,
+			"header":             input.Header,
+			"created_at":         stored.ServerReceivedAt,
+		}
+		s.hub.SendToDevice(input.ReceiverUserID, input.ReceiverDeviceID, event)
+		_, _ = s.store.MarkDeliveredByReceiver(ctx, stored.ID, input.ReceiverUserID, now)
+	} else if input.ReceiverDeviceID <= 0 && s.hub.IsOnline(input.ReceiverUserID) {
 		event := map[string]any{
 			"type":              "message.new",
 			"server_message_id": stored.ID,

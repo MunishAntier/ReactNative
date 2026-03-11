@@ -116,6 +116,7 @@ export async function sendEncryptedMessage(
             clientMessageId,
             ciphertext_b64,
             header,
+            peerDeviceId,
         );
 
         console.log(`[Signal🔐] 📤 SENT  |  msgId=${clientMessageId}  |  type=${header.message_type}  |  ciphertext=${ciphertext_b64.length} chars`);

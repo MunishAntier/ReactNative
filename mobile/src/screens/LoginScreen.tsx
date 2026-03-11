@@ -10,9 +10,10 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { startAuth, verifyOTP } from '../services/auth';
+import { startAuth, verifyOTP, loadUserInfo, getOrCreateStableDeviceUuid } from '../services/auth';
 import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
 import * as SignalManager from '../crypto/SignalManager';
+import { clearSignalStorage } from '../crypto/SignalKeyStore';
 import { getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';
 
 interface LoginScreenProps {
@@ -61,23 +62,32 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
         setLoading(true);
         try {
-            // Use a STABLE device UUID so we reuse the same server-side device
-            // record across logins.  Creating a new device on every login caused
-            // "bundle not found" and decryption failures.
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-            let deviceUuid = await AsyncStorage.getItem('device_uuid');
-            if (!deviceUuid) {
-                deviceUuid = `${Platform.OS}-${Date.now()}`;
-                await AsyncStorage.setItem('device_uuid', deviceUuid);
-            }
+            const previousUserInfo = await loadUserInfo();
+            // Keep the server-side device record stable across reinstalls too.
+            const deviceUuid = await getOrCreateStableDeviceUuid(Platform.OS);
             const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
+
+            const sameUserNewDevice =
+                previousUserInfo?.userId === res.user_id &&
+                previousUserInfo.deviceId !== res.device_id;
+
+            // If the server assigned a new device ID for the same local install,
+            // the old local Signal state is bound to the wrong device record.
+            if (sameUserNewDevice) {
+                try {
+                    await SignalManager.clearAll();
+                } catch { }
+                try {
+                    await clearSignalStorage(res.user_id);
+                } catch { }
+            }
 
             // Initialize Signal — only upload keys if this is a brand new identity.
             // Uploading keys every login overwrites local pre-keys, making pending
             // messages undecryptable (SignalError 6).
             try {
                 const isNewIdentity = await SignalManager.initialize(res.user_id);
-                if (isNewIdentity) {
+                if (isNewIdentity || sameUserNewDevice) {
                     await generateAndUploadKeys(res.user_id, 100);
                 } else {
                     // Issue 11: Check if signed pre-key needs rotation (30-day expiry)

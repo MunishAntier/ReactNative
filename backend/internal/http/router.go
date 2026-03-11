@@ -45,6 +45,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, redis *redis.Client) *App {
 		func(targetUserID int64, changedUserID int64, identityKeyVersion int) {
 			handlers.NotifyIdentityChanged(hub, targetUserID, changedUserID, identityKeyVersion)
 		},
+		hub.PreferredDeviceID,
 	)
 	pushService := notifications.BuildService(
 		store,

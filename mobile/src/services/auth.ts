@@ -20,6 +20,7 @@ export interface AuthVerifyResponse {
 }
 
 const USER_INFO_SERVICE = 'securemsg_user_info';
+const DEVICE_UUID_SERVICE = 'securemsg_device_uuid';
 
 /**
  * Persist user info (userId, deviceId) so we can restore after app relaunch.
@@ -30,6 +31,22 @@ async function saveUserInfo(userId: number, deviceId: number): Promise<void> {
         JSON.stringify({ userId, deviceId }),
         { service: USER_INFO_SERVICE },
     );
+}
+
+export async function getOrCreateStableDeviceUuid(platform: string): Promise<string> {
+    try {
+        const creds = await Keychain.getGenericPassword({ service: DEVICE_UUID_SERVICE });
+        if (creds && typeof creds === 'object' && 'password' in creds && creds.password) {
+            return creds.password;
+        }
+    } catch { }
+
+    const deviceUuid = `${platform}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    await Keychain.setGenericPassword('device_uuid', deviceUuid, {
+        service: DEVICE_UUID_SERVICE,
+        accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+    });
+    return deviceUuid;
 }
 
 /**

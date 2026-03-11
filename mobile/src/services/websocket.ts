@@ -177,11 +177,13 @@ class SecureWebSocket {
         clientMessageId: string,
         ciphertextB64: string,
         header: Record<string, any>,
+        receiverDeviceId?: number,
     ): void {
         this.send({
             type: 'message.send',
             conversation_id: conversationId,
             receiver_user_id: receiverUserId,
+            receiver_device_id: receiverDeviceId,
             client_message_id: clientMessageId,
             ciphertext_b64: ciphertextB64,
             header,

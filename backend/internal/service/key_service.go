@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"securemsg/backend/internal/domain"
@@ -13,6 +14,7 @@ type KeyService struct {
 	preKeyLowThreshold int
 	onLowPreKeys       func(userID int64)
 	onIdentityChanged  func(targetUserID int64, changedUserID int64, identityKeyVersion int)
+	preferredDeviceID  func(userID int64) (int64, bool)
 }
 
 func NewKeyService(
@@ -20,12 +22,14 @@ func NewKeyService(
 	threshold int,
 	onLowPreKeys func(userID int64),
 	onIdentityChanged func(targetUserID int64, changedUserID int64, identityKeyVersion int),
+	preferredDeviceID func(userID int64) (int64, bool),
 ) *KeyService {
 	return &KeyService{
 		store:              store,
 		preKeyLowThreshold: threshold,
 		onLowPreKeys:       onLowPreKeys,
 		onIdentityChanged:  onIdentityChanged,
+		preferredDeviceID:  preferredDeviceID,
 	}
 }
 
@@ -81,7 +85,24 @@ func (s *KeyService) UploadOneTimePrekeys(ctx context.Context, deviceID int64, p
 }
 
 func (s *KeyService) GetBundle(ctx context.Context, targetUserID int64) (*repository.KeyBundle, error) {
-	bundle, err := s.store.ReserveKeyBundle(ctx, targetUserID, time.Now().UTC())
+	now := time.Now().UTC()
+	if s.preferredDeviceID != nil {
+		if deviceID, ok := s.preferredDeviceID(targetUserID); ok && deviceID > 0 {
+			bundle, err := s.store.ReserveKeyBundleForDevice(ctx, targetUserID, deviceID, now)
+			if err == nil && bundle != nil {
+				count, countErr := s.store.CountAvailablePreKeys(ctx, bundle.DeviceID)
+				if countErr == nil && count < int64(s.preKeyLowThreshold) && s.onLowPreKeys != nil {
+					s.onLowPreKeys(targetUserID)
+				}
+				return bundle, nil
+			}
+			if err != nil && !errors.Is(err, repository.ErrNoAvailableOneTimePreKeys) {
+				return nil, err
+			}
+		}
+	}
+
+	bundle, err := s.store.ReserveKeyBundle(ctx, targetUserID, now)
 	if err != nil {
 		return nil, err
 	}

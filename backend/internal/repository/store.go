@@ -47,6 +47,8 @@ type RefreshLookup struct {
 	IsReuse bool
 }
 
+var ErrNoAvailableOneTimePreKeys = errors.New("no one-time prekeys available")
+
 func (s *Store) CreateOrGetUserByIdentifier(ctx context.Context, identifierType, identifier string, now time.Time) (*domain.User, error) {
 	column := "email"
 	verifiedCol := "email_verified"
@@ -303,11 +305,21 @@ func (s *Store) UpsertDeviceKeys(ctx context.Context, key domain.DeviceKey, prek
 		return err
 	}
 
+	// Delete all existing one-time prekeys for this device before inserting the
+	// new batch. When a device re-uploads its key bundle (after reinstall / fresh
+	// identity), leftover prekeys from the previous install are stale — the device
+	// no longer holds the corresponding private keys. If a peer fetches one of
+	// these stale prekeys, the receiver cannot decrypt (SignalError 10).
+	_, err = tx.ExecContext(ctx,
+		"DELETE FROM one_time_prekeys WHERE device_id = ?", key.DeviceID)
+	if err != nil {
+		return err
+	}
+
 	for _, p := range prekeys {
 		_, err := tx.ExecContext(ctx, `
 			INSERT INTO one_time_prekeys (device_id, prekey_id, prekey_public, status, created_at)
 			VALUES (?, ?, ?, 'available', ?)
-			ON DUPLICATE KEY UPDATE prekey_public = VALUES(prekey_public), status = IF(status='used', status, 'available')
 		`, p.DeviceID, p.PreKeyID, p.PreKeyPub, now)
 		if err != nil {
 			return err
@@ -417,19 +429,56 @@ func (s *Store) ReserveKeyBundle(ctx context.Context, targetUserID int64, now ti
 	}
 	defer tx.Rollback()
 
-	var deviceID int64
-	err = tx.QueryRowContext(ctx, `
-		SELECT id FROM devices WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1
-	`, targetUserID).Scan(&deviceID)
+	deviceID, err := s.selectLatestBundleDeviceTx(ctx, tx, targetUserID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+	bundle, err := s.reserveKeyBundleTx(ctx, tx, targetUserID, deviceID, now)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return bundle, nil
+}
 
-	bundle := &KeyBundle{UserID: targetUserID, DeviceID: deviceID}
+func (s *Store) ReserveKeyBundleForDevice(ctx context.Context, targetUserID, deviceID int64, now time.Time) (*KeyBundle, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var verifiedDeviceID int64
 	err = tx.QueryRowContext(ctx, `
+		SELECT id FROM devices WHERE user_id = ? AND id = ? LIMIT 1
+	`, targetUserID, deviceID).Scan(&verifiedDeviceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	bundle, err := s.reserveKeyBundleTx(ctx, tx, targetUserID, verifiedDeviceID, now)
+	if err != nil {
+		return nil, err
+	}
+	if bundle == nil {
+		return nil, nil
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return bundle, nil
+}
+
+func (s *Store) reserveKeyBundleTx(ctx context.Context, tx *sql.Tx, targetUserID, deviceID int64, now time.Time) (*KeyBundle, error) {
+	bundle := &KeyBundle{UserID: targetUserID, DeviceID: deviceID}
+	err := tx.QueryRowContext(ctx, `
 		SELECT registration_id, identity_public_key, identity_key_version, signed_prekey_id, signed_prekey_public, signed_prekey_signature
 		FROM device_keys WHERE device_id = ?
 	`, deviceID).Scan(&bundle.RegistrationID, &bundle.IdentityPublicKey, &bundle.IdentityKeyVersion, &bundle.SignedPreKeyID, &bundle.SignedPreKeyPublic, &bundle.SignedPreKeySignature)
@@ -450,7 +499,7 @@ func (s *Store) ReserveKeyBundle(ctx context.Context, targetUserID int64, now ti
 		FOR UPDATE
 	`, deviceID).Scan(&preKeyRowID, &bundle.OneTimePreKeyID, &bundle.OneTimePreKeyPublic)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, errors.New("no one-time prekeys available")
+		return nil, ErrNoAvailableOneTimePreKeys
 	}
 	if err != nil {
 		return nil, err
@@ -460,11 +509,20 @@ func (s *Store) ReserveKeyBundle(ctx context.Context, targetUserID int64, now ti
 	if err != nil {
 		return nil, err
 	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	return bundle, nil
+}
+
+func (s *Store) selectLatestBundleDeviceTx(ctx context.Context, tx *sql.Tx, targetUserID int64) (int64, error) {
+	var deviceID int64
+	err := tx.QueryRowContext(ctx, `
+		SELECT d.id
+		FROM devices d
+		INNER JOIN device_keys dk ON dk.device_id = d.id
+		WHERE d.user_id = ?
+		ORDER BY d.last_seen_at DESC, dk.updated_at DESC, d.updated_at DESC
+		LIMIT 1
+	`, targetUserID).Scan(&deviceID)
+	return deviceID, err
 }
 
 func (s *Store) MarkOneTimePreKeyUsed(ctx context.Context, receiverUserID, prekeyID int64, now time.Time) error {
@@ -478,6 +536,15 @@ func (s *Store) MarkOneTimePreKeyUsed(ctx context.Context, receiverUserID, preke
 		SET status = 'used', used_at = ?
 		WHERE device_id = ? AND prekey_id = ? AND status IN ('reserved','available')
 	`, now, deviceID, prekeyID)
+	return err
+}
+
+func (s *Store) MarkOneTimePreKeyUsedByDevice(ctx context.Context, receiverDeviceID, prekeyID int64, now time.Time) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE one_time_prekeys
+		SET status = 'used', used_at = ?
+		WHERE device_id = ? AND prekey_id = ? AND status IN ('reserved','available')
+	`, now, receiverDeviceID, prekeyID)
 	return err
 }
 

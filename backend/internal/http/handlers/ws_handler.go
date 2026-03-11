@@ -33,12 +33,13 @@ type wsEnvelope struct {
 }
 
 type wsMessageSend struct {
-	Type            string               `json:"type"`
-	ClientMessageID string               `json:"client_message_id"`
-	ReceiverUserID  int64                `json:"receiver_user_id"`
-	CiphertextB64   string               `json:"ciphertext_b64"`
-	Header          domain.MessageHeader `json:"header"`
-	SentAtClient    *time.Time           `json:"sent_at_client"`
+	Type             string               `json:"type"`
+	ClientMessageID  string               `json:"client_message_id"`
+	ReceiverUserID   int64                `json:"receiver_user_id"`
+	ReceiverDeviceID int64                `json:"receiver_device_id"`
+	CiphertextB64    string               `json:"ciphertext_b64"`
+	Header           domain.MessageHeader `json:"header"`
+	SentAtClient     *time.Time           `json:"sent_at_client"`
 }
 
 type wsAck struct {
@@ -100,7 +101,7 @@ func (h *Handler) WebSocket(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	client := h.Hub.Register(conn, claims.UID)
+	client := h.Hub.Register(conn, claims.UID, claims.DID)
 	h.audit(c, "ws.connect.succeeded", int64Ptr(claims.UID), int64Ptr(claims.DID), gin.H{
 		"session_id": claims.SID,
 		"request_id": middleware.CurrentRequestID(c),
@@ -136,13 +137,14 @@ func (h *Handler) WebSocket(c *gin.Context) {
 				return err
 			}
 			stored, duplicate, err := h.Message.Send(c.Request.Context(), service.SendMessageInput{
-				SenderID:        claims.UID,
-				SenderDeviceID:  claims.DID,
-				ReceiverUserID:  msg.ReceiverUserID,
-				ClientMessageID: msg.ClientMessageID,
-				CiphertextB64:   msg.CiphertextB64,
-				Header:          msg.Header,
-				SentAtClient:    msg.SentAtClient,
+				SenderID:         claims.UID,
+				SenderDeviceID:   claims.DID,
+				ReceiverUserID:   msg.ReceiverUserID,
+				ReceiverDeviceID: msg.ReceiverDeviceID,
+				ClientMessageID:  msg.ClientMessageID,
+				CiphertextB64:    msg.CiphertextB64,
+				Header:           msg.Header,
+				SentAtClient:     msg.SentAtClient,
 			})
 			if err != nil {
 				h.audit(c, "ws.message.send.failed", int64Ptr(claims.UID), int64Ptr(claims.DID), gin.H{
@@ -153,7 +155,11 @@ func (h *Handler) WebSocket(c *gin.Context) {
 				return err
 			}
 			status := "queued"
-			if h.Hub.IsOnline(msg.ReceiverUserID) {
+			if msg.ReceiverDeviceID > 0 {
+				if h.Hub.IsDeviceOnline(msg.ReceiverUserID, msg.ReceiverDeviceID) {
+					status = "delivered"
+				}
+			} else if h.Hub.IsOnline(msg.ReceiverUserID) {
 				status = "delivered"
 			}
 			h.Hub.SendToUser(claims.UID, map[string]any{
