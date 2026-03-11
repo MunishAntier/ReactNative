@@ -509,9 +509,9 @@ func (s *Store) GetOrCreateConversation(ctx context.Context, a, b int64, now tim
 
 func (s *Store) InsertMessageIdempotent(ctx context.Context, msg *domain.Message) (*domain.Message, bool, error) {
 	res, err := s.db.ExecContext(ctx, `
-		INSERT INTO messages (conversation_id, sender_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, msg.ConversationID, msg.SenderID, msg.ReceiverID, msg.ClientMessageID, msg.Ciphertext, msg.HeaderJSON, msg.ServerReceivedAt, msg.ExpiresAt)
+		INSERT INTO messages (conversation_id, sender_id, sender_device_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, msg.ConversationID, msg.SenderID, msg.SenderDeviceID, msg.ReceiverID, msg.ClientMessageID, msg.Ciphertext, msg.HeaderJSON, msg.ServerReceivedAt, msg.ExpiresAt)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			existing, getErr := s.GetMessageBySenderClientID(ctx, msg.SenderID, msg.ClientMessageID)
@@ -533,11 +533,11 @@ func (s *Store) InsertMessageIdempotent(ctx context.Context, msg *domain.Message
 func (s *Store) GetMessageBySenderClientID(ctx context.Context, senderID int64, clientMessageID string) (*domain.Message, error) {
 	var msg domain.Message
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, conversation_id, sender_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, delivered_at, read_at, expires_at
+		SELECT id, conversation_id, sender_id, sender_device_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, delivered_at, read_at, expires_at
 		FROM messages
 		WHERE sender_id = ? AND client_message_id = ?
 	`, senderID, clientMessageID).Scan(
-		&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.ReceiverID, &msg.ClientMessageID,
+		&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.SenderDeviceID, &msg.ReceiverID, &msg.ClientMessageID,
 		&msg.Ciphertext, &msg.HeaderJSON, &msg.ServerReceivedAt, &msg.DeliveredAt, &msg.ReadAt, &msg.ExpiresAt,
 	)
 	if err != nil {
@@ -587,10 +587,10 @@ func (s *Store) MarkRead(ctx context.Context, messageID int64, readerID int64, n
 func (s *Store) GetMessageByID(ctx context.Context, messageID int64) (*domain.Message, error) {
 	row := &domain.Message{}
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, conversation_id, sender_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, delivered_at, read_at, expires_at
+		SELECT id, conversation_id, sender_id, sender_device_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, delivered_at, read_at, expires_at
 		FROM messages WHERE id = ?
 	`, messageID).Scan(
-		&row.ID, &row.ConversationID, &row.SenderID, &row.ReceiverID, &row.ClientMessageID,
+		&row.ID, &row.ConversationID, &row.SenderID, &row.SenderDeviceID, &row.ReceiverID, &row.ClientMessageID,
 		&row.Ciphertext, &row.HeaderJSON, &row.ServerReceivedAt, &row.DeliveredAt, &row.ReadAt, &row.ExpiresAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -654,7 +654,7 @@ func (s *Store) SyncMessages(ctx context.Context, receiverID int64, since time.T
 		limit = 100
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, conversation_id, sender_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, delivered_at, read_at, expires_at
+		SELECT id, conversation_id, sender_id, sender_device_id, receiver_id, client_message_id, ciphertext, header_json, server_received_at, delivered_at, read_at, expires_at
 		FROM messages
 		WHERE receiver_id = ? AND server_received_at > ?
 		ORDER BY server_received_at ASC
@@ -669,7 +669,7 @@ func (s *Store) SyncMessages(ctx context.Context, receiverID int64, since time.T
 	for rows.Next() {
 		var msg domain.Message
 		if err := rows.Scan(
-			&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.ReceiverID, &msg.ClientMessageID,
+			&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.SenderDeviceID, &msg.ReceiverID, &msg.ClientMessageID,
 			&msg.Ciphertext, &msg.HeaderJSON, &msg.ServerReceivedAt, &msg.DeliveredAt, &msg.ReadAt, &msg.ExpiresAt,
 		); err != nil {
 			return nil, err

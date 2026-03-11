@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { websocket } from '../services/websocket';
-import { sendEncryptedMessage, decryptIncomingMessage } from '../services/signal';
+import { sendEncryptedMessage, decryptIncomingMessage, isMessageAlreadyDecrypted } from '../services/signal';
 import { syncMessages } from '../services/messages';
 
 interface ChatMessage {
@@ -97,6 +97,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
 
                     for (const msg of relevant) {
                         if (existingIds.has(msg.client_message_id)) continue;
+                        // Skip messages already decrypted via message.new (prevents session reset)
+                        if (isMessageAlreadyDecrypted(msg.client_message_id)) {
+                            continue;
+                        }
                         try {
                             if (msg.sender_id === myUserId) {
                                 // Own messages — store with placeholder text (Issue 12)
@@ -114,6 +118,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                                     msg.header,
                                     msg.sender_id,
                                     msg.sender_device_id || 1,
+                                    myUserId,
+                                    msg.client_message_id,
                                 );
                                 if (msg.sender_device_id) lastPeerDeviceIdRef.current = msg.sender_device_id;
                                 newMessages.push({
@@ -153,7 +159,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     new Date().toISOString(),
                 );
             } catch (err) {
-                console.error('Failed to sync messages:', err);
             }
         };
         loadMessages();
@@ -173,6 +178,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     data.header,
                     data.sender_user_id,
                     data.sender_device_id || 1,
+                    myUserId,
+                    data.client_message_id,
                 );
                 if (data.sender_device_id) lastPeerDeviceIdRef.current = data.sender_device_id;
                 const newMsg: ChatMessage = {

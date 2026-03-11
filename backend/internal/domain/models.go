@@ -58,6 +58,7 @@ type Message struct {
 	ID               int64      `json:"id"`
 	ConversationID   int64      `json:"conversation_id"`
 	SenderID         int64      `json:"sender_id"`
+	SenderDeviceID   int64      `json:"sender_device_id"`
 	ReceiverID       int64      `json:"receiver_id"`
 	ClientMessageID  string     `json:"client_message_id"`
 	Ciphertext       []byte     `json:"ciphertext"`
@@ -82,6 +83,7 @@ type RefreshTokenRecord struct {
 }
 
 type MessageHeader struct {
+	MessageType             string `json:"message_type"`
 	SessionVersion          int    `json:"session_version"`
 	SenderIdentityPubB64    string `json:"sender_identity_pub_b64"`
 	SenderEphemeralPubB64   string `json:"sender_ephemeral_pub_b64"`

@@ -137,6 +137,7 @@ func (h *Handler) WebSocket(c *gin.Context) {
 			}
 			stored, duplicate, err := h.Message.Send(c.Request.Context(), service.SendMessageInput{
 				SenderID:        claims.UID,
+				SenderDeviceID:  claims.DID,
 				ReceiverUserID:  msg.ReceiverUserID,
 				ClientMessageID: msg.ClientMessageID,
 				CiphertextB64:   msg.CiphertextB64,
@@ -198,14 +199,20 @@ func (h *Handler) WebSocket(c *gin.Context) {
 			// Convert messages to response format with base64 ciphertext
 			items := make([]map[string]any, 0, len(messages))
 			for _, m := range messages {
+				// Parse HeaderJSON back into a raw JSON object so it's not double-encoded
+				var headerObj any
+				if jsonErr := json.Unmarshal([]byte(m.HeaderJSON), &headerObj); jsonErr != nil {
+					headerObj = m.HeaderJSON // fallback to string if parsing fails
+				}
 				items = append(items, map[string]any{
 					"id":                m.ID,
 					"conversation_id":   m.ConversationID,
 					"sender_id":         m.SenderID,
+					"sender_device_id":  m.SenderDeviceID,
 					"receiver_id":       m.ReceiverID,
 					"client_message_id": m.ClientMessageID,
 					"ciphertext_b64":    base64.StdEncoding.EncodeToString(m.Ciphertext),
-					"header":            m.HeaderJSON,
+					"header":            headerObj,
 					"created_at":        m.ServerReceivedAt,
 					"delivered_at":      m.DeliveredAt,
 					"read_at":           m.ReadAt,

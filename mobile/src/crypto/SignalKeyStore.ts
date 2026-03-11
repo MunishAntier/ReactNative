@@ -133,7 +133,6 @@ async function migrateIdentityToKeychain(userId: number): Promise<void> {
         await saveIdentityToKeychain(userId, oldIdentity);
         // Remove from AsyncStorage (no longer needed there)
         await AsyncStorage.removeItem(`${getUserPrefix(userId)}${KEY_IDENTITY}`);
-        console.log('[Signal] Migrated identity key pair from AsyncStorage → Keychain');
     }
 }
 
@@ -196,14 +195,14 @@ export class AppIdentityKeyStore extends IdentityKeyStore {
         const existingB64 = Buffer.from(existing.serialized).toString('base64');
         const newB64 = Buffer.from(key.serialized).toString('base64');
         if (existingB64 !== newB64) {
-            console.warn(`[Signal] TOFU: Identity key CHANGED for ${name.name}:${name.deviceId}`);
             return false;
         }
         return true;
     }
 
     async getIdentity(address: ProtocolAddress): Promise<PublicKey | null> {
-        const raw = await getBytes(`${KEY_TRUSTED_IDENTITY}${addressKey(address)}`, this.userId);
+        const storageKey = `${KEY_TRUSTED_IDENTITY}${addressKey(address)}`;
+        const raw = await getBytes(storageKey, this.userId);
         if (!raw) return null;
         return PublicKey._fromSerialized(raw);
     }
@@ -217,7 +216,8 @@ export class AppSessionStore extends SessionStore {
     }
 
     async saveSession(name: ProtocolAddress, record: SessionRecord): Promise<void> {
-        await setBytes(`${KEY_SESSION}${addressKey(name)}`, record.serialized, this.userId);
+        const key = `${KEY_SESSION}${addressKey(name)}`;
+        await setBytes(key, record.serialized, this.userId);
     }
 
     async getSession(name: ProtocolAddress): Promise<SessionRecord | null> {
@@ -327,7 +327,6 @@ export async function initializeIdentity(userId: number): Promise<{
 
     if (keychainIdentity && !installMarker) {
         // Reinstall detected: Keychain key is stale, wipe it
-        console.log('[Signal] Reinstall detected — discarding stale Keychain identity');
         await Keychain.resetGenericPassword({ service: identityKeychainService(userId) });
         // Fall through to generate new identity below
     } else if (keychainIdentity && installMarker) {
@@ -453,8 +452,6 @@ export async function migrateOldKeys(userId: number): Promise<void> {
         return; // nothing to migrate
     }
 
-    console.log(`[Signal] Migrating ${oldFormatKeys.length} keys from old format to user ${userId}`);
-
     for (const oldKey of oldFormatKeys) {
         const suffix = oldKey.slice(PREFIX.length); // e.g. "identity_keypair"
         const newKey = `${newPrefix}${suffix}`;     // e.g. "signal:42:identity_keypair"
@@ -465,13 +462,10 @@ export async function migrateOldKeys(userId: number): Promise<void> {
             const value = await AsyncStorage.getItem(oldKey);
             if (value !== null) {
                 await AsyncStorage.setItem(newKey, value);
-                console.log(`[Signal]   Migrated: ${oldKey} → ${newKey}`);
             }
         }
 
         // Remove the old key after migration
         await AsyncStorage.removeItem(oldKey);
     }
-
-    console.log('[Signal] Key migration complete');
 }

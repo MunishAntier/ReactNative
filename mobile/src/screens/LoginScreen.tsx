@@ -69,9 +69,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             if (!deviceUuid) {
                 deviceUuid = `${Platform.OS}-${Date.now()}`;
                 await AsyncStorage.setItem('device_uuid', deviceUuid);
-                console.log('[Login] Generated new device UUID:', deviceUuid);
-            } else {
-                console.log('[Login] Reusing device UUID:', deviceUuid);
             }
             const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
 
@@ -82,25 +79,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 const isNewIdentity = await SignalManager.initialize(res.user_id);
                 if (isNewIdentity) {
                     await generateAndUploadKeys(res.user_id, 100);
-                    console.log('[Login] NEW identity — keys generated and uploaded');
                 } else {
-                    console.log('[Login] Existing identity loaded — skipping key upload');
                     // Issue 11: Check if signed pre-key needs rotation (30-day expiry)
                     try {
                         const currentSpkId = await getCurrentSignedPreKeyId(res.user_id);
-                        if (currentSpkId > 0) {
-                            console.log('[Login] Signed pre-key rotation check passed');
-                        } else {
+                        if (currentSpkId === 0) {
                             // No signed pre-key on record — rotate
                             await rotateSignedPreKey(res.user_id);
-                            console.log('[Login] Signed pre-key rotated');
                         }
                     } catch (rotateErr: any) {
-                        console.warn('[Login] Signed pre-key rotation check failed:', rotateErr.message);
                     }
                 }
             } catch (keyErr: any) {
-                console.warn('[Login] Signal init/key upload failed:', keyErr.message);
             }
 
             onLoginSuccess(res.user_id, res.device_id);

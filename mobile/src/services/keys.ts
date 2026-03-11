@@ -41,7 +41,6 @@ export async function generateAndUploadKeys(userId: number, oneTimePreKeyCount: 
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Key upload failed');
     }
-    console.log('[Keys] Initial bundle uploaded');
     return bundle;
 }
 
@@ -59,7 +58,6 @@ export async function replenishOneTimePreKeys(userId: number, count: number = 10
     if (!res.ok) {
         throw new Error('Failed to upload one-time pre-keys');
     }
-    console.log(`[Keys] Replenished ${count} one-time pre-keys`);
 }
 
 /**
@@ -71,18 +69,14 @@ export async function checkAndReplenishPreKeys(userId: number, threshold: number
     try {
         const res = await apiFetch('/keys/prekey-count');
         if (!res.ok) {
-            console.warn('[Keys] Failed to check pre-key count:', res.status);
             return;
         }
         const data = await res.json();
         const count = data.count as number;
-        console.log(`[Keys] Server pre-key count: ${count}`);
         if (count < threshold) {
-            console.log(`[Keys] Below threshold (${threshold}), replenishing...`);
             await replenishOneTimePreKeys(userId);
         }
     } catch (err) {
-        console.warn('[Keys] Failed to check/replenish pre-keys:', err);
     }
 }
 
@@ -107,7 +101,6 @@ export async function rotateSignedPreKey(userId: number): Promise<void> {
     if (!res.ok) {
         throw new Error('Failed to rotate signed pre-key');
     }
-    console.log('[Keys] Signed pre-key rotated');
 }
 
 /**
@@ -132,15 +125,10 @@ export async function fetchPeerKeyBundle(userId: number): Promise<PeerKeyBundle>
  */
 export async function checkAndUploadKeys(userId: number): Promise<void> {
     try {
-        console.log(`[Keys] Checking if keys for user ${userId} exist on server...`);
         await fetchPeerKeyBundle(userId);
-        console.log('[Keys] Keys found on server');
     } catch (err: any) {
         if (err.message?.includes('BUNDLE_NOT_FOUND')) {
-            console.warn('[Keys] Keys missing on server, uploading now...');
             await generateAndUploadKeys(userId);
-        } else {
-            console.error('[Keys] Failed to check for existing keys:', err.message);
         }
     }
 }

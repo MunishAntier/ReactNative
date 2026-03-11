@@ -24,6 +24,7 @@ type MessageService struct {
 
 type SendMessageInput struct {
 	SenderID        int64
+	SenderDeviceID  int64
 	ReceiverUserID  int64
 	ClientMessageID string
 	CiphertextB64   string
@@ -58,6 +59,7 @@ func (s *MessageService) Send(ctx context.Context, input SendMessageInput) (*dom
 	msg := &domain.Message{
 		ConversationID:   conversationID,
 		SenderID:         input.SenderID,
+		SenderDeviceID:   input.SenderDeviceID,
 		ReceiverID:       input.ReceiverUserID,
 		ClientMessageID:  input.ClientMessageID,
 		Ciphertext:       ciphertext,
@@ -78,6 +80,7 @@ func (s *MessageService) Send(ctx context.Context, input SendMessageInput) (*dom
 			"server_message_id": stored.ID,
 			"conversation_id":   stored.ConversationID,
 			"sender_user_id":    stored.SenderID,
+			"sender_device_id":  input.SenderDeviceID,
 			"client_message_id": stored.ClientMessageID,
 			"ciphertext_b64":    input.CiphertextB64,
 			"header":            input.Header,

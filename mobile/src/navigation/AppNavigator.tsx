@@ -35,7 +35,6 @@ const AppNavigator: React.FC = () => {
                 try {
                     await SignalManager.initialize(userId);
                 } catch (err) {
-                    console.warn('[App] Signal init on resume:', err);
                 }
 
                 setScreen({ name: 'conversations', userId, deviceId });

@@ -43,6 +43,12 @@ import {
     migrateOldKeys,
 } from './SignalKeyStore';
 
+// ────────────────────── Helper: truncated base64 for logs ──────────────────────
+function b64Short(b64: string, len = 16): string {
+    return b64.length > len ? b64.substring(0, len) + '…' : b64;
+}
+const LINE = '═══════════════════════════════════════════════════════════';
+
 // ────────────────────────── Singleton Stores ──────────────────────────
 
 let identityStore: AppIdentityKeyStore;
@@ -53,6 +59,25 @@ let kyberPreKeyStore: AppKyberPreKeyStore;
 
 // Cached identity after initialization
 let cachedIdentity: { userId: number; identityKeyPair: IdentityKeyPair; registrationId: number } | null = null;
+
+// ────────────────────────── Signal Operation Mutex ──────────────────────────
+// Serializes encrypt/decrypt/session operations to prevent concurrent calls
+// from loading the same session, modifying it independently, and overwriting
+// each other's changes. Without this, the Double Ratchet state gets corrupted.
+let signalMutexChain: Promise<any> = Promise.resolve();
+
+export async function withSignalLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const prev = signalMutexChain;
+    signalMutexChain = gate;
+    await prev; // wait for all prior operations to finish
+    try {
+        return await fn();
+    } finally {
+        release!();
+    }
+}
 
 // ────────────────────────── Public API ──────────────────────────
 
@@ -74,7 +99,6 @@ export async function initialize(userId: number): Promise<boolean> {
 
     const identity = await initializeIdentity(userId);
     cachedIdentity = { userId, identityKeyPair: identity.identityKeyPair, registrationId: identity.registrationId };
-    console.log(`[Signal] Initialized for user ${userId} regId=${cachedIdentity.registrationId}`, identity.isNew ? '(NEW)' : '(existing)');
     return identity.isNew;
 }
 
@@ -236,6 +260,19 @@ export async function initSession(
     const effectivePreKey = preKey ?? signedPreKey; // fallback to signed pre-key as placeholder
     const effectivePreKeyId = preKey ? preKeyId : -1;
 
+    // ─── Log X3DH Key Agreement ───
+    const ownIdPub = Buffer.from(cachedIdentity!.identityKeyPair.publicKey.serialized).toString('base64');
+    console.log(`\n${LINE}`);
+    console.log(`[Signal🔐] X3DH SESSION SETUP  |  Me → User ${peerUserId}  |  Device ${peerBundle.device_id}`);
+    console.log(LINE);
+    console.log(`  Our Identity Key (pub)   : ${b64Short(ownIdPub)}  (${cachedIdentity!.identityKeyPair.publicKey.serialized.length} bytes)`);
+    console.log(`  Peer Identity Key (pub)  : ${b64Short(peerBundle.identity_public_key)}  (from bundle)`);
+    console.log(`  Peer Signed PreKey (pub) : ${b64Short(peerBundle.signed_prekey_public)}  (ID=${peerBundle.signed_prekey_id})`);
+    console.log(`  Peer OneTime PreKey (pub): ${preKey ? b64Short(peerBundle.one_time_prekey_public) + '  (ID=' + preKeyId + ')' : '⚠ NONE — reduced forward secrecy'}`);
+    console.log(`  Peer Registration ID     : ${peerBundle.registration_id}`);
+    console.log(`  Signature                : ${b64Short(peerBundle.signed_prekey_signature)}`);
+    console.log(LINE);
+
     await createAndProcessPreKeyBundle(
         peerBundle.registration_id,
         address,
@@ -250,7 +287,8 @@ export async function initSession(
         null, // No Kyber pre-keys
     );
 
-    console.log(`[Signal] Session created with user ${peerUserId}`);
+    console.log(`[Signal🔐] ✅ X3DH session established with User ${peerUserId}`);
+    console.log(LINE + '\n');
 }
 
 /**
@@ -283,8 +321,6 @@ export async function encrypt(
     const address = new ProtocolAddress(peerUserId.toString(), peerDeviceId);
     const message = new Uint8Array(Buffer.from(plaintext, 'utf-8'));
 
-    console.log(`[Signal] Encrypting for user ${peerUserId}, device ${peerDeviceId}`);
-
     // Check session exists before calling libsignal
     const session = await sessionStore.getSession(address);
     if (!session) {
@@ -292,13 +328,10 @@ export async function encrypt(
     }
 
     // Let libsignal handle the identity key check internally.
-    // We do NOT perform our own check here — libsignal will throw
-    // 'no identity key associated with address' only if saveIdentity was
-    // never called (which happens inside createAndProcessPreKeyBundle).
     const ownPrivateKey = await identityStore.getIdentityKey();
     if (!ownPrivateKey) throw new Error('Local identity private key missing');
 
-    // Step 4: Call signalEncrypt
+    // Call signalEncrypt
     const cipherText = await signalEncrypt(message, address, sessionStore, identityStore);
     if (!cipherText) throw new Error('signalEncrypt returned null');
 
@@ -308,26 +341,56 @@ export async function encrypt(
     let receiverPreKeyId = 0;
     let messageIndex = 0;
 
-    if (msgType === CiphertextMessageType.PreKey) {
-        const preKeyMsg = PreKeySignalMessage._fromSerialized(ciphertextBytes);
-        receiverPreKeyId = preKeyMsg.preKeyId() ?? 0;
-    } else if (msgType === CiphertextMessageType.Whisper) {
-        const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
-        messageIndex = signalMsg.counter();
+    const ciphertextB64 = Buffer.from(ciphertextBytes).toString('base64');
+    const senderIdPub = Buffer.from(
+        cachedIdentity!.identityKeyPair.publicKey.serialized,
+    ).toString('base64');
+
+    const isPreKey = msgType === CiphertextMessageType.PreKey;
+    const protocol = isPreKey ? 'X3DH + PreKey' : 'Double Ratchet + Whisper';
+
+    // ─── Log Encryption Details ───
+    console.log(`\n${LINE}`);
+    console.log(`[Signal🔐] ENCRYPT  |  Me → User ${peerUserId}  |  Protocol: ${protocol}`);
+    console.log(LINE);
+    console.log(`  Sender Identity Key (pub): ${b64Short(senderIdPub)}  (${cachedIdentity!.identityKeyPair.publicKey.serialized.length} bytes)`);
+
+    if (isPreKey) {
+        try {
+            const preKeyMsg = PreKeySignalMessage._fromSerialized(ciphertextBytes);
+            receiverPreKeyId = preKeyMsg.preKeyId() ?? 0;
+            const signedPKId = preKeyMsg.signedPreKeyId();
+            const regId = preKeyMsg.registrationId();
+            const ver = preKeyMsg.version();
+            console.log(`  Receiver OneTime PreKey ID: ${receiverPreKeyId || 'none'}`);
+            console.log(`  Receiver Signed PreKey ID : ${signedPKId}`);
+            console.log(`  Registration ID            : ${regId}`);
+            console.log(`  Protocol Version           : ${ver}`);
+        } catch (_logErr: any) {
+            // non-fatal
+        }
+    } else {
+        try {
+            const whisperMsg = SignalMessage._fromSerialized(ciphertextBytes);
+            messageIndex = whisperMsg.counter();
+            const ver = whisperMsg.messageVersion();
+            console.log(`  Ratchet Counter (chain idx): ${messageIndex}`);
+            console.log(`  Protocol Version           : ${ver}`);
+        } catch (_logErr: any) {
+            // non-fatal
+        }
     }
 
-    const ciphertextB64 = Buffer.from(ciphertextBytes).toString('base64');
-    const msgTypeLabel = msgType === CiphertextMessageType.PreKey ? 'PreKey' : 'Whisper';
-    console.log(`[Signal] ✉️ Encrypted ${msgTypeLabel} message for user ${peerUserId}`);
+    console.log(`  Plaintext                  : "${plaintext.substring(0, 50)}${plaintext.length > 50 ? '…' : ''}" (${plaintext.length} bytes)`);
+    console.log(`  Ciphertext (b64)           : ${b64Short(ciphertextB64, 40)}  (${ciphertextBytes.length} bytes)`);
+    console.log(LINE + '\n');
 
     return {
         ciphertext_b64: ciphertextB64,
         header: {
             session_version: 3,
-            message_type: msgType === CiphertextMessageType.PreKey ? 'prekey' : 'whisper',
-            sender_identity_pub_b64: Buffer.from(
-                cachedIdentity!.identityKeyPair.publicKey.serialized,
-            ).toString('base64'),
+            message_type: isPreKey ? 'prekey' as const : 'whisper' as const,
+            sender_identity_pub_b64: senderIdPub,
             sender_ephemeral_pub_b64: '',
             receiver_one_time_prekey_id: receiverPreKeyId,
             ratchet_pub_b64: '',
@@ -357,8 +420,25 @@ export async function decrypt(
     const messageType = _header?.message_type;
 
     if (messageType === 'prekey') {
-        // Sender told us this is a PreKey message
+        // ═══ RECEIVER: First message via X3DH ═══
         const preKeyMsg = PreKeySignalMessage._fromSerialized(ciphertextBytes);
+
+        // ─── Log PreKey Decrypt Details ───
+        const pkId = preKeyMsg.preKeyId();
+        const spkId = preKeyMsg.signedPreKeyId();
+        const regId = preKeyMsg.registrationId();
+        const ver = preKeyMsg.version();
+        console.log(`\n${LINE}`);
+        console.log(`[Signal🔐] DECRYPT  |  User ${senderUserId} → Me  |  Protocol: X3DH + PreKey`);
+        console.log(LINE);
+        console.log(`  Sender Identity Key (hdr) : ${_header?.sender_identity_pub_b64 ? b64Short(_header.sender_identity_pub_b64) : 'not in header'}`);
+        console.log(`  OneTime PreKey ID consumed: ${pkId ?? 'none'}`);
+        console.log(`  Signed PreKey ID          : ${spkId}`);
+        console.log(`  Registration ID           : ${regId}`);
+        console.log(`  Protocol Version          : ${ver}`);
+        console.log(`  Ciphertext received (b64) : ${b64Short(ciphertextB64, 40)}  (${ciphertextBytes.length} bytes)`);
+
+        // Actual decryption
         plaintext = await signalDecryptPreKey(
             preKeyMsg,
             address,
@@ -369,12 +449,60 @@ export async function decrypt(
             kyberPreKeyStore,
             [],
         );
-        console.log(`[Signal] 🔓 Decrypted PreKey message from user ${senderUserId}`);
+
+        const decryptedText = Buffer.from(plaintext).toString('utf-8');
+        console.log(`  Decrypted plaintext       : "${decryptedText.substring(0, 50)}${decryptedText.length > 50 ? '…' : ''}" (${decryptedText.length} bytes)`);
+        console.log(`[Signal🔐] ✅ PreKey decrypt successful — session established with User ${senderUserId}`);
+        console.log(LINE + '\n');
+
+        // Explicitly save the sender's identity key after successful PreKey decryption.
+        if (_header?.sender_identity_pub_b64) {
+            try {
+                const senderIdKeyBytes = new Uint8Array(Buffer.from(_header.sender_identity_pub_b64, 'base64'));
+                const senderIdKey = PublicKey._fromSerialized(senderIdKeyBytes);
+                await identityStore.saveIdentity(address, senderIdKey);
+            } catch (_saveErr: any) {
+                // non-fatal
+            }
+        }
+
     } else if (messageType === 'whisper') {
-        // Sender told us this is a regular Signal (Whisper) message
+        // ═══ RECEIVER: Double Ratchet Whisper message ═══
         const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
+
+        // ─── Log Whisper Decrypt Details ───
+        const counter = signalMsg.counter();
+        const ver = signalMsg.messageVersion();
+        console.log(`\n${LINE}`);
+        console.log(`[Signal🔐] DECRYPT  |  User ${senderUserId} → Me  |  Protocol: Double Ratchet + Whisper`);
+        console.log(LINE);
+        console.log(`  Sender Identity Key (hdr) : ${_header?.sender_identity_pub_b64 ? b64Short(_header.sender_identity_pub_b64) : 'not in header'}`);
+        console.log(`  Ratchet Counter (chain idx): ${counter}`);
+        console.log(`  Protocol Version           : ${ver}`);
+        console.log(`  Ciphertext received (b64)  : ${b64Short(ciphertextB64, 40)}  (${ciphertextBytes.length} bytes)`);
+
+        // Ensure sender's identity key is saved BEFORE decrypt.
+        if (_header?.sender_identity_pub_b64) {
+            try {
+                const existingKey = await identityStore.getIdentity(address);
+                if (!existingKey) {
+                    const senderIdKeyBytes = new Uint8Array(Buffer.from(_header.sender_identity_pub_b64, 'base64'));
+                    const senderIdKey = PublicKey._fromSerialized(senderIdKeyBytes);
+                    await identityStore.saveIdentity(address, senderIdKey);
+                }
+            } catch (_idErr: any) {
+                // non-fatal
+            }
+        }
+
+        // Actual decryption
         plaintext = await signalDecrypt(signalMsg, address, sessionStore, identityStore);
-        console.log(`[Signal] 🔓 Decrypted Signal message from user ${senderUserId}`);
+
+        const decryptedTextW = Buffer.from(plaintext).toString('utf-8');
+        console.log(`  Decrypted plaintext        : "${decryptedTextW.substring(0, 50)}${decryptedTextW.length > 50 ? '…' : ''}" (${decryptedTextW.length} bytes)`);
+        console.log(`[Signal🔐] ✅ Whisper decrypt successful`);
+        console.log(LINE + '\n');
+
     } else {
         // Legacy fallback: header doesn't contain message_type (older messages)
         // Try PreKey first, then Whisper
@@ -390,18 +518,15 @@ export async function decrypt(
                 kyberPreKeyStore,
                 [],
             );
-            console.log(`[Signal] 🔓 Decrypted PreKey message from user ${senderUserId} (legacy)`);
-        } catch (preKeyErr: any) {
+        } catch (_preKeyErr: any) {
             // Only fall through to Whisper if PreKey PARSING failed,
             // not if decryption itself failed
             try {
                 const signalMsg = SignalMessage._fromSerialized(ciphertextBytes);
                 plaintext = await signalDecrypt(signalMsg, address, sessionStore, identityStore);
-                console.log(`[Signal] 🔓 Decrypted Signal message from user ${senderUserId} (legacy)`);
-            } catch (whisperErr: any) {
+            } catch (_whisperErr: any) {
                 // Both failed — throw the more descriptive error
-                console.error(`[Signal] Decryption failed for user ${senderUserId}:`, preKeyErr.message, '/', whisperErr.message);
-                throw preKeyErr;
+                throw _preKeyErr;
             }
         }
     }
@@ -428,7 +553,6 @@ export async function invalidateSession(peerUserId: number, peerDeviceId: number
         session.archiveCurrentState();
         await sessionStore.saveSession(address, session);
     }
-    console.log(`[Signal] Session invalidated with user ${peerUserId}`);
 }
 
 /**
@@ -464,5 +588,4 @@ export async function clearAll(): Promise<void> {
     preKeyStore = undefined as any;
     signedPreKeyStore = undefined as any;
     kyberPreKeyStore = undefined as any;
-    console.log('[Signal] All Signal data cleared (identity key deleted from Keychain)');
 }

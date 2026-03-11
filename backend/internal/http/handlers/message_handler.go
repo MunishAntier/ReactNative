@@ -75,6 +75,7 @@ func (h *Handler) SyncMessages(c *gin.Context) {
 			"id":                m.ID,
 			"conversation_id":   m.ConversationID,
 			"sender_id":         m.SenderID,
+			"sender_device_id":  m.SenderDeviceID,
 			"receiver_id":       m.ReceiverID,
 			"client_message_id": m.ClientMessageID,
 			"ciphertext_b64":    base64.StdEncoding.EncodeToString(m.Ciphertext),

@@ -38,7 +38,6 @@ export async function syncMessages(
         try {
             return await websocket.requestSync(since, limit);
         } catch (err) {
-            console.warn('[Messages] WebSocket sync failed, falling back to HTTP:', err);
         }
     }
 

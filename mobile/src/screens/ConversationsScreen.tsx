@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { listConversations, ConversationItem } from '../services/messages';
 import { lookupUser } from '../services/auth';
+import { websocket } from '../services/websocket';
 
 interface ConversationsScreenProps {
     userId: number;
@@ -35,12 +36,25 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
             const convs = await listConversations();
             setConversations(convs);
         } catch (err: any) {
-            console.error('Failed to load conversations:', err.message);
         }
     }, []);
 
     useEffect(() => {
         loadConversations();
+    }, [loadConversations]);
+
+    // Real-time: refresh conversation list when new messages arrive
+    useEffect(() => {
+        const unsubNew = websocket.on('message.new', () => {
+            loadConversations();
+        });
+        const unsubStatus = websocket.on('message.status', () => {
+            loadConversations();
+        });
+        return () => {
+            unsubNew();
+            unsubStatus();
+        };
     }, [loadConversations]);
 
     const onRefresh = async () => {
