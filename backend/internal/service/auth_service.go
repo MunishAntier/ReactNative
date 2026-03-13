@@ -16,13 +16,15 @@ import (
 var (
 	ErrRefreshInvalid = errors.New("refresh token invalid")
 	ErrRefreshReuse   = errors.New("refresh token reuse detected")
+	ErrDeviceLimitHit = errors.New("maximum number of devices reached")
 )
 
 type AuthService struct {
-	store     *repository.Store
-	otp       *OTPService
-	tokens    *security.TokenManager
-	otpExpose bool
+	store      *repository.Store
+	otp        *OTPService
+	tokens     *security.TokenManager
+	otpExpose  bool
+	maxDevices int
 }
 
 type VerifyAuthInput struct {
@@ -43,8 +45,11 @@ type AuthTokens struct {
 	SessionID        string    `json:"session_id"`
 }
 
-func NewAuthService(store *repository.Store, otp *OTPService, tokens *security.TokenManager, otpExpose bool) *AuthService {
-	return &AuthService{store: store, otp: otp, tokens: tokens, otpExpose: otpExpose}
+func NewAuthService(store *repository.Store, otp *OTPService, tokens *security.TokenManager, otpExpose bool, maxDevices int) *AuthService {
+	if maxDevices <= 0 {
+		maxDevices = 5
+	}
+	return &AuthService{store: store, otp: otp, tokens: tokens, otpExpose: otpExpose, maxDevices: maxDevices}
 }
 
 func (s *AuthService) StartAuth(ctx context.Context, identifier, purpose, ip, deviceFingerprint string) (map[string]any, error) {
@@ -86,6 +91,14 @@ func (s *AuthService) VerifyAuth(ctx context.Context, input VerifyAuthInput) (*A
 	device, err := s.store.UpsertDevice(ctx, user.ID, input.DeviceUUID, input.Platform, input.PushToken, now)
 	if err != nil {
 		return nil, err
+	}
+	// Check device limit (Rule 9) — only for newly activated devices
+	activeCount, err := s.store.CountActiveDevices(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if activeCount > s.maxDevices {
+		return nil, ErrDeviceLimitHit
 	}
 	sessionID := uuid.NewString()
 	familyID := uuid.NewString()

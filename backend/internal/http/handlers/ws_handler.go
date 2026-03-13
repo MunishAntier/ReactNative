@@ -42,6 +42,20 @@ type wsMessageSend struct {
 	SentAtClient     *time.Time           `json:"sent_at_client"`
 }
 
+type wsFanOutCiphertext struct {
+	ReceiverDeviceID int64                `json:"receiver_device_id"`
+	CiphertextB64    string               `json:"ciphertext_b64"`
+	Header           domain.MessageHeader `json:"header"`
+}
+
+type wsFanOutSend struct {
+	Type            string               `json:"type"`
+	ClientMessageID string               `json:"client_message_id"`
+	ReceiverUserID  int64                `json:"receiver_user_id"`
+	Ciphertexts     []wsFanOutCiphertext `json:"ciphertexts"`
+	SentAtClient    *time.Time           `json:"sent_at_client"`
+}
+
 type wsAck struct {
 	Type            string `json:"type"`
 	ServerMessageID int64  `json:"server_message_id"`
@@ -170,6 +184,57 @@ func (h *Handler) WebSocket(c *gin.Context) {
 				"duplicate":         duplicate,
 			})
 			return nil
+		case "message.send.fanout":
+			var msg wsFanOutSend
+			if err := json.Unmarshal(payload, &msg); err != nil {
+				return err
+			}
+			ciphertexts := make([]service.FanOutCiphertext, 0, len(msg.Ciphertexts))
+			for _, ct := range msg.Ciphertexts {
+				ciphertexts = append(ciphertexts, service.FanOutCiphertext{
+					ReceiverDeviceID: ct.ReceiverDeviceID,
+					CiphertextB64:    ct.CiphertextB64,
+					Header:           ct.Header,
+				})
+			}
+			stored, duplicate, err := h.Message.SendFanOut(c.Request.Context(), service.SendFanOutInput{
+				SenderID:        claims.UID,
+				SenderDeviceID:  claims.DID,
+				ReceiverUserID:  msg.ReceiverUserID,
+				ClientMessageID: msg.ClientMessageID,
+				Ciphertexts:     ciphertexts,
+				SentAtClient:    msg.SentAtClient,
+			})
+			if err != nil {
+				h.audit(c, "ws.message.send.fanout.failed", int64Ptr(claims.UID), int64Ptr(claims.DID), gin.H{
+					"receiver_user_id": msg.ReceiverUserID,
+					"device_count":     len(msg.Ciphertexts),
+					"error":            err.Error(),
+					"request_id":       middleware.CurrentRequestID(c),
+				})
+				return err
+			}
+			// Build per-device delivery status
+			deviceStatuses := make([]map[string]any, 0, len(msg.Ciphertexts))
+			for _, ct := range msg.Ciphertexts {
+				ds := map[string]any{
+					"receiver_device_id": ct.ReceiverDeviceID,
+					"status":             "queued",
+				}
+				if h.Hub.IsDeviceOnline(msg.ReceiverUserID, ct.ReceiverDeviceID) {
+					ds["status"] = "delivered"
+				}
+				deviceStatuses = append(deviceStatuses, ds)
+			}
+			h.Hub.SendToUser(claims.UID, map[string]any{
+				"type":              "message.status",
+				"server_message_id": stored.ID,
+				"client_message_id": msg.ClientMessageID,
+				"status":            "fanout",
+				"device_statuses":   deviceStatuses,
+				"duplicate":         duplicate,
+			})
+			return nil
 		case "message.ack.delivered":
 			var ack wsAck
 			if err := json.Unmarshal(payload, &ack); err != nil {
@@ -198,7 +263,7 @@ func (h *Handler) WebSocket(c *gin.Context) {
 			if limit <= 0 || limit > 500 {
 				limit = 200
 			}
-			messages, syncErr := h.Message.Sync(c.Request.Context(), claims.UID, since, limit)
+			messages, syncErr := h.Message.Sync(c.Request.Context(), claims.UID, claims.DID, since, limit)
 			if syncErr != nil {
 				return conn.WriteJSON(map[string]any{"type": "messages.sync.error", "error": syncErr.Error()})
 			}

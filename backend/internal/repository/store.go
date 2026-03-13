@@ -134,11 +134,12 @@ func (s *Store) UpsertDevice(ctx context.Context, userID int64, deviceUUID, plat
 		platform = "unknown"
 	}
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO devices (user_id, device_uuid, platform, push_token, last_seen_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO devices (user_id, device_uuid, platform, push_token, is_active, last_seen_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, TRUE, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		platform = VALUES(platform),
 		push_token = VALUES(push_token),
+		is_active = TRUE,
 		last_seen_at = VALUES(last_seen_at),
 		updated_at = VALUES(updated_at)
 	`, userID, deviceUUID, platform, pushToken, now, now, now)
@@ -147,10 +148,10 @@ func (s *Store) UpsertDevice(ctx context.Context, userID int64, deviceUUID, plat
 	}
 	device := &domain.Device{}
 	err = s.db.QueryRowContext(ctx, `
-		SELECT id, user_id, device_uuid, platform, push_token, last_seen_at, created_at, updated_at
+		SELECT id, user_id, device_uuid, platform, push_token, is_active, last_seen_at, created_at, updated_at
 		FROM devices WHERE user_id = ? AND device_uuid = ? LIMIT 1
 	`, userID, deviceUUID).Scan(
-		&device.ID, &device.UserID, &device.DeviceUUID, &device.Platform, &device.PushToken, &device.LastSeenAt, &device.CreatedAt, &device.UpdatedAt,
+		&device.ID, &device.UserID, &device.DeviceUUID, &device.Platform, &device.PushToken, &device.IsActive, &device.LastSeenAt, &device.CreatedAt, &device.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -166,13 +167,13 @@ func (s *Store) TouchDeviceSeen(ctx context.Context, deviceID int64, now time.Ti
 func (s *Store) GetLatestDeviceByUser(ctx context.Context, userID int64) (*domain.Device, error) {
 	device := &domain.Device{}
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, user_id, device_uuid, platform, push_token, last_seen_at, created_at, updated_at
+		SELECT id, user_id, device_uuid, platform, push_token, is_active, last_seen_at, created_at, updated_at
 		FROM devices
-		WHERE user_id = ?
+		WHERE user_id = ? AND is_active = TRUE
 		ORDER BY updated_at DESC
 		LIMIT 1
 	`, userID).Scan(
-		&device.ID, &device.UserID, &device.DeviceUUID, &device.Platform, &device.PushToken, &device.LastSeenAt, &device.CreatedAt, &device.UpdatedAt,
+		&device.ID, &device.UserID, &device.DeviceUUID, &device.Platform, &device.PushToken, &device.IsActive, &device.LastSeenAt, &device.CreatedAt, &device.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil

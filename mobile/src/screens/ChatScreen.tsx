@@ -28,6 +28,7 @@ interface ChatScreenProps {
     conversationId: number | null;
     peerUserId: number;
     myUserId: number;
+    myDeviceId: number;
     onGoBack: () => void;
 }
 
@@ -60,6 +61,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
     conversationId,
     peerUserId,
     myUserId,
+    myDeviceId,
     onGoBack,
 }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -266,7 +268,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 text,
                 convIdRef.current,
                 myUserId,
-                lastPeerDeviceIdRef.current || null,
+                myDeviceId,
             );
             setMessages(prev => {
                 const updated = prev.map(m =>

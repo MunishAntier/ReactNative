@@ -59,6 +59,8 @@ PODS:
     - ExpoModulesCore
   - ExpoKeepAwake (55.0.4):
     - ExpoModulesCore
+  - ExpoLinearGradient (55.0.8):
+    - ExpoModulesCore
   - ExpoLogBox (55.0.7):
     - React-Core
   - ExpoModulesCore (55.0.13):
@@ -2043,6 +2045,51 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNSVG (15.15.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNSVG/common (= 15.15.3)
+    - Yoga
+  - RNSVG/common (15.15.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2054,6 +2101,7 @@ DEPENDENCIES:
   - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo/node_modules/expo-font/ios`)
   - ExpoKeepAwake (from `../node_modules/expo/node_modules/expo-keep-awake/ios`)
+  - ExpoLinearGradient (from `../node_modules/expo-linear-gradient/ios`)
   - "ExpoLogBox (from `../node_modules/expo/node_modules/@expo/log-box`)"
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - ExpoModulesJSI (from `../node_modules/expo-modules-core`)
@@ -2137,6 +2185,7 @@ DEPENDENCIES:
   - ReactNativeLibsignalClient (from `../node_modules/react-native-libsignal-client/ios`)
   - RNKeychain (from `../node_modules/react-native-keychain`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2160,6 +2209,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo/node_modules/expo-font/ios"
   ExpoKeepAwake:
     :path: "../node_modules/expo/node_modules/expo-keep-awake/ios"
+  ExpoLinearGradient:
+    :path: "../node_modules/expo-linear-gradient/ios"
   ExpoLogBox:
     :path: "../node_modules/expo/node_modules/@expo/log-box"
   ExpoModulesCore:
@@ -2326,6 +2377,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-keychain"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSVG:
+    :path: "../node_modules/react-native-svg"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2337,18 +2390,19 @@ CHECKOUT OPTIONS:
 SPEC CHECKSUMS:
   AsyncStorage: eebc990dd8895116194775bfc668cf95757d4820
   CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
-  EXConstants: b3c63be5f8648e4ab8e6ff5099b62f629247f969
+  EXConstants: c02411791ebd077fc6262f766958f5c381445255
   Expo: 3b3ba6aca271c224323ec013fa06dc680eae985a
   ExpoAsset: bdc7bc21fe25d197c3aa7547e14c12c42087d9c9
   ExpoDomWebView: f101fb3db4b6eec4163fca51f7507189b7e48661
   ExpoFileSystem: e1a42d7f69f7faae33f4d7d01708f7861f7bd757
   ExpoFont: 1aa465cf9f8ac6b670405becba8b15473581b2dd
   ExpoKeepAwake: 7f3b28c361c37389b18841bb52a58003b39fcb33
+  ExpoLinearGradient: 499856f296f83c05279d18447bdb57ab0e06d294
   ExpoLogBox: 89b634d5a8a64c4a6a7caad8f9985a28463c7002
   ExpoModulesCore: d935ea3202d2a1b9e28e5b1085fa4de356a1d860
   ExpoModulesJSI: bcc87b51e04bdfc9a23102baac1d886630316e49
   FBLazyVector: e97c19a5a442429d1988f182a1940fb08df514da
-  hermes-engine: 83b3e4cbf6b3bb8dcc7eb06ffeb7853087ffca37
+  hermes-engine: f8258f0ccaacc589530f6519b3821c6bdb741f8c
   LibSignalClient: 39c03448ae4f19a53c4296efc3b7914c8e74e786
   RCTDeprecation: af44b104091a34482596cd9bd7e8d90c4e9b4bd7
   RCTRequired: bb77b070f75f53398ce43c0aaaa58337cebe2bf6
@@ -2358,7 +2412,7 @@ SPEC CHECKSUMS:
   React: 1ba7d364ade7d883a1ec055bfc3606f35fdee17b
   React-callinvoker: bc2a26f8d84fb01f003fc6de6c9337b64715f95b
   React-Core: 7840d3a80b43a95c5e80ef75146bd70925ebab0f
-  React-Core-prebuilt: 8fa10cfeaa3d1873d86f333f18574b75d162a10d
+  React-Core-prebuilt: f51e3f2c270eb5a7c11adc35dd86b6982cc8711c
   React-CoreModules: 2eb010400b63b89e53a324ffb3c112e4c7c3ce42
   React-cxxreact: a558e92199d26f145afa9e62c4233cf8e7950efe
   React-debug: d196e6df0599d78360b3211367e28c5583054133
@@ -2422,10 +2476,11 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: e96e93b493d8d86eeaee3e590ba0be53f6abe46f
   ReactCodegen: 66522f37c7e4861aec1f6a574dee83917fad4397
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
-  ReactNativeDependencies: 63ae5d626a21e3f88ce5d0a8a1f58995ef4ed9f6
+  ReactNativeDependencies: b2f6462eff40d313cceff1e912f2efe60c926203
   ReactNativeLibsignalClient: 5ad32b79def4489ea3bdfa15645cc1e566a95837
   RNKeychain: ce2cee63eab83888c3da68684da50b9c83c33461
   RNScreens: ca829379d20b0d1ff41a0b87bc37bdc50276cef5
+  RNSVG: 4a9f0b92f0a95bf3af7f787fd36a9c762d4d3d42
   Yoga: 846fbe6f595136be802ad81d05688ff748839764
 
 PODFILE CHECKSUM: 3fad96d72fe7b0fbb5b1f42b850fab203c7e8410

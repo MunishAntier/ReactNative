@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"securemsg/backend/internal/http/middleware"
+	"securemsg/backend/internal/repository"
 	"securemsg/backend/internal/security"
 	"securemsg/backend/internal/service"
 	"securemsg/backend/internal/ws"
@@ -21,6 +22,7 @@ type Handler struct {
 	Hub              *ws.Hub
 	Redis            *redis.Client
 	DB               *sql.DB
+	Store            *repository.Store
 }
 
 func New(
@@ -33,6 +35,7 @@ func New(
 	hub *ws.Hub,
 	redis *redis.Client,
 	db *sql.DB,
+	store *repository.Store,
 ) *Handler {
 	return &Handler{
 		Auth:             auth,
@@ -44,5 +47,6 @@ func New(
 		Hub:              hub,
 		Redis:            redis,
 		DB:               db,
+		Store:            store,
 	}
 }
