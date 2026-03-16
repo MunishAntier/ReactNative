@@ -1,0 +1,37 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assets/fonts/ClashDisplay-Medium.otf",
+      "sha1": "fdc4f408b5117fd85166b198dfe4d0fac52c34c2"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Semibold.otf",
+      "sha1": "64e9b35c59ea054e2aa2ac545d1692b61c8fc4bc"
+    },
+    {
+      "path": "src/assets/fonts/.gitkeep",
+      "sha1": "adc83b19e793491b1c6ea0fd8b46cd9f32e592fc"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Light.otf",
+      "sha1": "4853269d062e6326fda140287fc079635e4489ce"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Bold.otf",
+      "sha1": "bd717ab64fc380747bc734a097d6379c6cca24e3"
+    },
+    {
+      "path": "src/assets/fonts/gilroy-gh.zip",
+      "sha1": "d205cbd6783332a212c5ae92d73c77178c2d2f28"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Regular.otf",
+      "sha1": "67d49fed960a230e12c212d5312dc3cf3ed1d73b"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Extralight.otf",
+      "sha1": "be7e3a551c21ce3b67ebde1c45faacac63948c1c"
+    }
+  ]
+}

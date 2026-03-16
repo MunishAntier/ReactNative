@@ -4,7 +4,7 @@ import { loadTokens, clearTokens } from '../services/api';
 import { logout, loadUserInfo } from '../services/auth';
 import { websocket } from '../services/websocket';
 import * as SignalManager from '../crypto/SignalManager';
-// import SplashScreen from '../screens/SplashScreen';
+import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -122,9 +122,9 @@ const AppNavigator: React.FC = () => {
     return (
         <>
             <StatusBar barStyle="light-content" backgroundColor="#000000" />
-            {/* {showSplash && (
+            {showSplash && (
                 <SplashScreen onFinish={() => setShowSplash(false)} />
-            )} */}
+            )}
             {!showSplash && screen.name === 'login' && (
                 <LoginScreen
                     onLoginSuccess={handleLoginSuccess}

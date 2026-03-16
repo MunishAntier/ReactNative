@@ -18,7 +18,7 @@ interface HeroSectionProps {
     height?: number;
 }
 
-const DEFAULT_HERO_IMAGE = require('../assets/images/BG.png');
+const DEFAULT_HERO_IMAGE = require('../../assets/images/profile_setup_top.png');
 const DEFAULT_HEIGHT = 200;
 
 const HeroSection: React.FC<HeroSectionProps> = ({
@@ -45,7 +45,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     onPress={onBack}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+                    <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
                 </TouchableOpacity>
             )}
 
@@ -89,18 +89,18 @@ const styles = StyleSheet.create({
     heroTitle: {
         fontFamily: 'ClashDisplay-Medium',
         fontSize: 28,
-        fontWeight: '500',
-        color: '#FFFFFF',
-        lineHeight: 34,
-        letterSpacing: -0.5,
+        color: '#FCFDFD',
+        lineHeight: 28,
+        letterSpacing: 0,
         marginBottom: 8,
     },
     heroSubtitle: {
-        fontFamily: 'ClashDisplay-Regular',
-        fontSize: 14,
+        fontFamily: 'Gilroy-Regular',
+        fontSize: 16,
         fontWeight: '400',
-        color: 'rgba(255,255,255,0.75)',
-        lineHeight: 20,
+        color: '#929292',
+        lineHeight: 24,
+        letterSpacing: 0,
     },
 });
 

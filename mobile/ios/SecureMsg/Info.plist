@@ -67,5 +67,14 @@
 	<string>Light</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>ClashDisplay-Medium.otf</string>
+		<string>ClashDisplay-Semibold.otf</string>
+		<string>ClashDisplay-Light.otf</string>
+		<string>ClashDisplay-Bold.otf</string>
+		<string>ClashDisplay-Regular.otf</string>
+		<string>ClashDisplay-Extralight.otf</string>
+	</array>
 </dict>
 </plist>
