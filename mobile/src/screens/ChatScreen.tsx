@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -9,7 +9,12 @@ import {
     KeyboardAvoidingView,
     Platform,
     Alert,
+    Image,
+    useWindowDimensions,
+    ListRenderItem,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { websocket } from '../services/websocket';
 import { sendEncryptedMessage, decryptIncomingMessage, isMessageAlreadyDecrypted } from '../services/signal';
@@ -24,14 +29,40 @@ interface ChatMessage {
     serverMessageId?: number;
 }
 
+type TimelineItem =
+    | {
+        type: 'day';
+        id: string;
+        label: string;
+    }
+    | {
+        type: 'message';
+        id: string;
+        message: ChatMessage;
+    }
+    | {
+        type: 'call';
+        id: string;
+        mode: 'video' | 'voice';
+        durationLabel: string;
+    };
+
 interface ChatScreenProps {
     conversationId: number | null;
     peerUserId: number;
     myUserId: number;
+    myDeviceId: number;
+    peerDisplayName?: string;
+    peerAvatar?: string | null;
     onGoBack: () => void;
 }
 
-// ── Local message cache helpers (Issue 15) ──
+const FONT_FAMILIES = {
+    clashRegular: 'ClashDisplay-Regular',
+    clashMedium: 'ClashDisplay-Medium',
+};
+
+const DEFAULT_AVATAR = require('../assets/images/profile_avatar.png');
 
 function cacheKey(myUserId: number, peerUserId: number): string {
     const a = Math.min(myUserId, peerUserId);
@@ -43,42 +74,188 @@ function syncTimestampKey(myUserId: number): string {
     return `last_sync_ts:${myUserId}`;
 }
 
+function sameDay(a: Date, b: Date): boolean {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
+function toDayKey(date: Date): string {
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function formatDayLabel(date: Date): string {
+    const now = new Date();
+    if (sameDay(date, now)) {
+        return 'Today';
+    }
+
+    return date.toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+    });
+}
+
+function formatTimeLabel(timestamp: string): string {
+    return new Date(timestamp).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
 async function loadCachedMessages(myUserId: number, peerUserId: number): Promise<ChatMessage[]> {
     try {
         const raw = await AsyncStorage.getItem(cacheKey(myUserId, peerUserId));
         return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
+    } catch {
+        return [];
+    }
 }
 
 async function saveCachedMessages(myUserId: number, peerUserId: number, msgs: ChatMessage[]): Promise<void> {
-    // Keep only the latest 500 messages per conversation
     const trimmed = msgs.slice(-500);
     await AsyncStorage.setItem(cacheKey(myUserId, peerUserId), JSON.stringify(trimmed));
+}
+
+function toTimelineItems(messages: ChatMessage[]): TimelineItem[] {
+    const items: TimelineItem[] = [];
+    let previousDayKey: string | null = null;
+    let messageCount = 0;
+    let addedVideo = false;
+    let addedVoice = false;
+
+    for (const message of messages) {
+        const date = new Date(message.timestamp);
+        const dayKey = toDayKey(date);
+
+        if (dayKey !== previousDayKey) {
+            items.push({
+                type: 'day',
+                id: `day-${dayKey}`,
+                label: formatDayLabel(date),
+            });
+            previousDayKey = dayKey;
+        }
+
+        items.push({
+            type: 'message',
+            id: `msg-${message.id}`,
+            message,
+        });
+
+        messageCount += 1;
+
+        if (messageCount === 2) {
+            items.push({
+                type: 'call',
+                id: 'mock-call-video',
+                mode: 'video',
+                durationLabel: '15m',
+            });
+            addedVideo = true;
+        }
+
+        if (messageCount === 4) {
+            items.push({
+                type: 'call',
+                id: 'mock-call-voice',
+                mode: 'voice',
+                durationLabel: '48m',
+            });
+            addedVoice = true;
+        }
+    }
+
+    if (messages.length > 0) {
+        if (!addedVideo) {
+            items.push({
+                type: 'call',
+                id: 'mock-call-video',
+                mode: 'video',
+                durationLabel: '15m',
+            });
+        }
+        if (!addedVoice) {
+            items.push({
+                type: 'call',
+                id: 'mock-call-voice',
+                mode: 'voice',
+                durationLabel: '48m',
+            });
+        }
+    }
+
+    return items;
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({
     conversationId,
     peerUserId,
     myUserId,
+    myDeviceId,
+    peerDisplayName,
+    peerAvatar,
     onGoBack,
 }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [securityWarning, setSecurityWarning] = useState(false);
-    const lastPeerDeviceIdRef = useRef(1); // Use ref to avoid stale closure (Issue 14)
-    const flatListRef = useRef<FlatList>(null);
+    const [composerHeight, setComposerHeight] = useState(46);
+
+    const lastPeerDeviceIdRef = useRef(1);
+    const flatListRef = useRef<FlatList<TimelineItem>>(null);
     const convIdRef = useRef(conversationId);
 
-    // Load existing messages: first from local cache, then sync new ones (Issue 13, 15)
+    const insets = useSafeAreaInsets();
+    const { width: screenWidth } = useWindowDimensions();
+
+    const uiScale = Math.min(Math.max(screenWidth / 390, 0.92), 1.12);
+    const ui = useMemo(
+        () => ({
+            headerHorizontal: 22 * uiScale,
+            messageHorizontal: 22 * uiScale,
+            headerTop: insets.top + 10 * uiScale,
+            headerBottom: 14 * uiScale,
+            iconSize: 22 * uiScale,
+            actionIconSize: 20 * uiScale,
+            actionButtonSize: 44 * uiScale,
+            avatarSize: 42 * uiScale,
+            bubbleRadius: 16 * uiScale,
+            inputHeight: Math.min(Math.max(composerHeight, 42 * uiScale), 100 * uiScale),
+            composerPaddingBottom: Math.max(insets.bottom, 10),
+        }),
+        [composerHeight, insets.bottom, insets.top, uiScale],
+    );
+
+    const displayName = useMemo(() => {
+        if (peerDisplayName && peerDisplayName.trim().length > 0) {
+            return peerDisplayName;
+        }
+        return `User #${peerUserId}`;
+    }, [peerDisplayName, peerUserId]);
+
+    const avatarSource = useMemo(() => {
+        if (peerAvatar && peerAvatar.trim().length > 0) {
+            return { uri: peerAvatar };
+        }
+        return DEFAULT_AVATAR;
+    }, [peerAvatar]);
+
+    const timelineItems = useMemo(() => toTimelineItems(messages), [messages]);
+
+    useEffect(() => {
+        convIdRef.current = conversationId;
+    }, [conversationId]);
+
     useEffect(() => {
         const loadMessages = async () => {
-            // Step 1: Load from local cache immediately
             const cached = await loadCachedMessages(myUserId, peerUserId);
             if (cached.length > 0) {
                 setMessages(cached);
             }
 
-            // Step 2: Sync only NEW messages from server (Issue 13)
             try {
                 const lastSync = await AsyncStorage.getItem(syncTimestampKey(myUserId));
                 const since = lastSync || '2000-01-01T00:00:00Z';
@@ -91,19 +268,17 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 );
 
                 if (relevant.length > 0) {
-                    // Build a set of existing message IDs to avoid duplicates
                     const existingIds = new Set(cached.map(m => m.id));
                     const newMessages: ChatMessage[] = [];
 
                     for (const msg of relevant) {
                         if (existingIds.has(msg.client_message_id)) continue;
-                        // Skip messages already decrypted via message.new (prevents session reset)
                         if (isMessageAlreadyDecrypted(msg.client_message_id)) {
                             continue;
                         }
+
                         try {
                             if (msg.sender_id === myUserId) {
-                                // Own messages — store with placeholder text (Issue 12)
                                 newMessages.push({
                                     id: msg.client_message_id,
                                     text: '[sent message]',
@@ -121,7 +296,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                                     myUserId,
                                     msg.client_message_id,
                                 );
-                                if (msg.sender_device_id) lastPeerDeviceIdRef.current = msg.sender_device_id;
+                                if (msg.sender_device_id) {
+                                    lastPeerDeviceIdRef.current = msg.sender_device_id;
+                                }
                                 newMessages.push({
                                     id: msg.client_message_id,
                                     text: plaintext,
@@ -137,7 +314,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                             }
                             newMessages.push({
                                 id: msg.client_message_id || `msg-${msg.id}`,
-                                text: '🔒 Unable to decrypt',
+                                text: 'Unable to decrypt',
                                 isMine: msg.sender_id === myUserId,
                                 timestamp: msg.created_at,
                                 status: 'failed',
@@ -153,18 +330,14 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     }
                 }
 
-                // Update last sync timestamp
-                await AsyncStorage.setItem(
-                    syncTimestampKey(myUserId),
-                    new Date().toISOString(),
-                );
-            } catch (err) {
+                await AsyncStorage.setItem(syncTimestampKey(myUserId), new Date().toISOString());
+            } catch {
             }
         };
+
         loadMessages();
     }, [peerUserId, myUserId]);
 
-    // Listen for incoming messages
     useEffect(() => {
         const unsubNew = websocket.on('message.new', async (data: any) => {
             if (data.sender_user_id !== peerUserId) return;
@@ -181,7 +354,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     myUserId,
                     data.client_message_id,
                 );
-                if (data.sender_device_id) lastPeerDeviceIdRef.current = data.sender_device_id;
+
+                if (data.sender_device_id) {
+                    lastPeerDeviceIdRef.current = data.sender_device_id;
+                }
+
                 const newMsg: ChatMessage = {
                     id: data.client_message_id,
                     text: plaintext,
@@ -190,14 +367,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     status: 'delivered',
                     serverMessageId: data.server_message_id,
                 };
+
                 setMessages(prev => {
                     const updated = [...prev, newMsg];
-                    // Persist to local cache (Issue 15)
                     saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
                     return updated;
                 });
 
-                // Ack delivery
                 websocket.ackDelivered(data.server_message_id);
             } catch (err: any) {
                 if (err.message?.startsWith('IDENTITY_CHANGED')) {
@@ -207,7 +383,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     ...prev,
                     {
                         id: data.client_message_id || `msg-${Date.now()}`,
-                        text: '🔒 Unable to decrypt',
+                        text: 'Unable to decrypt',
                         isMine: false,
                         timestamp: new Date().toISOString(),
                         status: 'failed',
@@ -226,13 +402,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             );
         });
 
-        // Fixed: backend sends 'session.identity_changed', not 'identity.changed'
         const unsubIdentity = websocket.on('session.identity_changed', (data: any) => {
             if (data.changed_user_id === peerUserId) {
                 setSecurityWarning(true);
                 Alert.alert(
-                    '⚠️ Security Number Changed',
-                    'The security number for this contact has changed. This may mean they reinstalled the app.',
+                    'Security Number Changed',
+                    'The security number for this contact has changed. Please verify identity before continuing.',
                 );
             }
         });
@@ -244,7 +419,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
         };
     }, [peerUserId, myUserId]);
 
-    // Fix Issue 14: useCallback now uses refs for mutable values (no stale closure)
     const handleSend = useCallback(async () => {
         const text = inputText.trim();
         if (!text) return;
@@ -257,6 +431,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             timestamp: new Date().toISOString(),
             status: 'sending',
         };
+
         setMessages(prev => [...prev, newMsg]);
         setInputText('');
 
@@ -266,118 +441,253 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 text,
                 convIdRef.current,
                 myUserId,
-                lastPeerDeviceIdRef.current || null,
+                myDeviceId,
             );
+
             setMessages(prev => {
                 const updated = prev.map(m =>
                     m.id === tempId ? { ...m, id: clientMessageId, text, status: 'sent' as const } : m,
                 );
-                // Persist sent message with its plaintext (Issue 12)
                 saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
                 return updated;
             });
         } catch (err: any) {
-            setMessages(prev =>
-                prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)),
-            );
+            setMessages(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
             Alert.alert('Send Failed', err.message);
         }
-    }, [inputText, peerUserId, myUserId]);
+    }, [inputText, peerUserId, myUserId, myDeviceId]);
 
     const statusIcon = (status: ChatMessage['status']) => {
         switch (status) {
-            case 'sending': return '○';
-            case 'sent': return '✓';
-            case 'delivered': return '✓✓';
-            case 'read': return '✓✓';
-            case 'failed': return '⚠';
-            default: return '';
+            case 'sending':
+                return '○';
+            case 'sent':
+                return '✓';
+            case 'delivered':
+            case 'read':
+                return '✓✓';
+            case 'failed':
+                return '⚠';
+            default:
+                return '';
         }
     };
 
-    const renderMessage = ({ item }: { item: ChatMessage }) => (
-        <View
-            style={[
-                styles.messageBubble,
-                item.isMine ? styles.myMessage : styles.theirMessage,
-            ]}>
-            <Text style={[styles.messageText, item.status === 'failed' && styles.failedText]}>
-                {item.text}
-            </Text>
-            <View style={styles.messageFooter}>
-                <Text style={styles.messageTime}>
-                    {new Date(item.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                    })}
-                </Text>
-                {item.isMine && (
+    const handleActionPress = (label: string) => {
+        Alert.alert(label, `${label} action will be wired next.`);
+    };
+
+    const handleCallChipPress = (mode: 'video' | 'voice') => {
+        const label = mode === 'video' ? 'Video call event' : 'Voice call event';
+        Alert.alert(label, 'Timeline call events are placeholders in this version.');
+    };
+
+    const renderTimelineItem: ListRenderItem<TimelineItem> = ({ item }) => {
+        if (item.type === 'day') {
+            return (
+                <View style={styles.dayRow}>
+                    <Text style={[styles.dayLabel, { fontSize: 15 * uiScale }]}>{item.label}</Text>
+                </View>
+            );
+        }
+
+        if (item.type === 'call') {
+            return (
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.callChip}
+                    onPress={() => handleCallChipPress(item.mode)}>
+                    <Ionicons
+                        name={item.mode === 'video' ? 'videocam-outline' : 'call-outline'}
+                        size={17 * uiScale}
+                        color="#757575"
+                    />
+                    <Text style={[styles.callChipText, { fontSize: 14 * uiScale }]}>
+                        {`Outgoing ${item.mode} call - ${item.durationLabel}`}
+                    </Text>
+                </TouchableOpacity>
+            );
+        }
+
+        const message = item.message;
+        const isMine = message.isMine;
+        const statusGlyph = statusIcon(message.status);
+
+        return (
+            <View style={[styles.messageBlock, isMine ? styles.messageBlockMine : styles.messageBlockTheirs]}>
+                <View
+                    style={[
+                        styles.messageBubble,
+                        {
+                            borderRadius: ui.bubbleRadius,
+                            maxWidth: screenWidth * 0.72,
+                            paddingHorizontal: 18 * uiScale,
+                            paddingVertical: 14 * uiScale,
+                        },
+                        isMine ? styles.messageBubbleMine : styles.messageBubbleTheirs,
+                    ]}>
                     <Text
                         style={[
-                            styles.messageStatus,
-                            item.status === 'read' && styles.statusRead,
-                            item.status === 'failed' && styles.statusFailed,
+                            styles.messageText,
+                            { fontSize: 16 * uiScale, lineHeight: 23 * uiScale },
+                            isMine ? styles.messageTextMine : styles.messageTextTheirs,
+                            message.status === 'failed' && styles.failedText,
                         ]}>
-                        {statusIcon(item.status)}
+                        {message.text}
                     </Text>
-                )}
+                </View>
+
+                <View
+                    style={[
+                        styles.metaRow,
+                        isMine ? styles.metaRowMine : styles.metaRowTheirs,
+                        { marginTop: 7 * uiScale },
+                    ]}>
+                    <Text style={[styles.metaTime, { fontSize: 15 * 0.8 * uiScale }]}>{formatTimeLabel(message.timestamp)}</Text>
+                    {isMine && (
+                        <Text
+                            style={[
+                                styles.metaStatus,
+                                { fontSize: 15 * 0.8 * uiScale },
+                                message.status === 'failed' ? styles.metaStatusFailed : styles.metaStatusOk,
+                            ]}>
+                            {statusGlyph}
+                        </Text>
+                    )}
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={0}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onGoBack} style={styles.backBtn}>
-                    <Text style={styles.backText}>←</Text>
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}>
+            <View
+                style={[
+                    styles.header,
+                    {
+                        paddingTop: ui.headerTop,
+                        paddingBottom: ui.headerBottom,
+                        paddingHorizontal: ui.headerHorizontal,
+                    },
+                ]}>
+                <TouchableOpacity style={styles.backButton} onPress={onGoBack} activeOpacity={0.8}>
+                    <Ionicons name="arrow-back" size={ui.iconSize} color="#161616" />
                 </TouchableOpacity>
-                <View style={styles.headerInfo}>
-                    <Text style={styles.peerName}>User #{peerUserId}</Text>
-                    <Text style={styles.encryptedLabel}>🔒 End-to-end encrypted</Text>
+
+                <Image
+                    source={avatarSource}
+                    style={{
+                        width: ui.avatarSize,
+                        height: ui.avatarSize,
+                        borderRadius: ui.avatarSize / 2,
+                        marginRight: 14 * uiScale,
+                    }}
+                />
+
+                <Text
+                    style={[styles.headerName, { fontSize: 31 * 0.8 * uiScale }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
+                    {displayName}
+                </Text>
+
+                <View style={styles.headerActions}>
+                    <TouchableOpacity
+                        style={[styles.headerActionButton, { width: ui.actionButtonSize, height: ui.actionButtonSize, borderRadius: 16 * uiScale }]}
+                        onPress={() => handleActionPress('Video call')}>
+                        <Ionicons name="videocam-outline" size={ui.actionIconSize} color="#2a2a2a" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.headerActionButton, { width: ui.actionButtonSize, height: ui.actionButtonSize, borderRadius: 16 * uiScale }]}
+                        onPress={() => handleActionPress('Voice call')}>
+                        <Ionicons name="call-outline" size={ui.actionIconSize} color="#2a2a2a" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.headerActionButton, { width: ui.actionButtonSize, height: ui.actionButtonSize, borderRadius: 16 * uiScale }]}
+                        onPress={() => handleActionPress('More options')}>
+                        <Ionicons name="ellipsis-vertical" size={ui.actionIconSize} color="#2a2a2a" />
+                    </TouchableOpacity>
                 </View>
             </View>
 
-            {/* Security Warning */}
             {securityWarning && (
                 <View style={styles.warningBanner}>
                     <Text style={styles.warningText}>
-                        ⚠️ Security number changed. Verify this contact's identity.
+                        Security number changed. Please verify identity before sharing sensitive details.
                     </Text>
                 </View>
             )}
 
-            {/* Messages */}
             <FlatList
                 ref={flatListRef}
-                data={messages}
-                renderItem={renderMessage}
+                data={timelineItems}
+                renderItem={renderTimelineItem}
                 keyExtractor={item => item.id}
-                contentContainerStyle={styles.messageList}
+                contentContainerStyle={{
+                    paddingHorizontal: ui.messageHorizontal,
+                    paddingVertical: 14 * uiScale,
+                    paddingBottom: 22 * uiScale,
+                }}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
             />
 
-            {/* Input */}
-            <View style={styles.inputContainer}>
-                <TextInput
-                    style={styles.textInput}
-                    value={inputText}
-                    onChangeText={setInputText}
-                    placeholder="Message..."
-                    placeholderTextColor="#666"
-                    multiline
-                    returnKeyType="send"
-                    onSubmitEditing={handleSend}
-                />
-                <TouchableOpacity
-                    style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-                    onPress={handleSend}
-                    disabled={!inputText.trim()}>
-                    <Text style={styles.sendButtonText}>▶</Text>
-                </TouchableOpacity>
+            <View
+                style={[
+                    styles.composerWrap,
+                    {
+                        paddingHorizontal: ui.messageHorizontal,
+                        paddingBottom: ui.composerPaddingBottom,
+                        paddingTop: 8 * uiScale,
+                    },
+                ]}>
+                <View style={styles.composerRow}>
+                    <View style={styles.composerInputShell}>
+                        <Ionicons name="attach-outline" size={20 * uiScale} color="#232323" style={styles.inputLeadingIcon} />
+
+                        <TextInput
+                            style={[
+                                styles.textInput,
+                                {
+                                    fontSize: 14.5 * uiScale,
+                                    minHeight: ui.inputHeight,
+                                    maxHeight: 100 * uiScale,
+                                },
+                            ]}
+                            value={inputText}
+                            onChangeText={setInputText}
+                            placeholder="Secure message..."
+                            placeholderTextColor="#7A7A7A"
+                            multiline
+                            textAlignVertical="center"
+                            returnKeyType="send"
+                            onSubmitEditing={handleSend}
+                            onContentSizeChange={event => {
+                                const nextHeight = event.nativeEvent.contentSize.height + 10;
+                                setComposerHeight(nextHeight);
+                            }}
+                        />
+
+                        <TouchableOpacity onPress={() => handleActionPress('Add attachment')} style={styles.inlineIconBtn}>
+                            <Ionicons name="add-circle-outline" size={20 * uiScale} color="#232323" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleActionPress('Voice note')} style={styles.inlineIconBtn}>
+                            <Ionicons name="mic-outline" size={20 * uiScale} color="#232323" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                        style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+                        onPress={handleSend}
+                        disabled={!inputText.trim()}>
+                        <Ionicons name="send" size={20 * uiScale} color="#FFFFFF" />
+                    </TouchableOpacity>
+                </View>
             </View>
         </KeyboardAvoidingView>
     );
@@ -386,135 +696,177 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0a0a0f',
+        backgroundColor: '#D7DBDE',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 52,
-        paddingBottom: 14,
         borderBottomWidth: 1,
-        borderBottomColor: '#1a1a2e',
+        borderBottomColor: '#C5C9CD',
+        backgroundColor: '#D7DBDE',
     },
-    backBtn: {
-        padding: 8,
-        marginRight: 8,
+    backButton: {
+        paddingVertical: 4,
+        paddingRight: 10,
     },
-    backText: {
-        fontSize: 22,
-        color: '#6c63ff',
-    },
-    headerInfo: {
+    headerName: {
         flex: 1,
+        color: '#1E1E1E',
+        fontFamily: FONT_FAMILIES.clashMedium,
     },
-    peerName: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#ffffff',
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
     },
-    encryptedLabel: {
-        fontSize: 12,
-        color: '#4ade80',
-        marginTop: 2,
+    headerActionButton: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#E7E8EA',
     },
     warningBanner: {
-        backgroundColor: '#5c3d00',
-        padding: 10,
-        alignItems: 'center',
+        marginTop: 8,
+        marginHorizontal: 22,
+        borderRadius: 12,
+        backgroundColor: '#FFEECF',
+        borderWidth: 1,
+        borderColor: '#F1C679',
+        paddingHorizontal: 12,
+        paddingVertical: 9,
     },
     warningText: {
-        color: '#ffd700',
-        fontSize: 13,
-        fontWeight: '500',
+        color: '#704B0A',
+        fontSize: 12,
+        lineHeight: 16,
+        fontFamily: FONT_FAMILIES.clashRegular,
     },
-    messageList: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+    dayRow: {
+        alignItems: 'center',
+        marginTop: 2,
+        marginBottom: 16,
+    },
+    dayLabel: {
+        color: '#2F2F2F',
+        fontFamily: FONT_FAMILIES.clashRegular,
+    },
+    messageBlock: {
+        marginBottom: 14,
+    },
+    messageBlockMine: {
+        alignItems: 'flex-end',
+    },
+    messageBlockTheirs: {
+        alignItems: 'flex-start',
     },
     messageBubble: {
-        maxWidth: '78%',
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 16,
-        marginBottom: 8,
+        shadowColor: '#000000',
+        shadowOpacity: 0.03,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
     },
-    myMessage: {
-        alignSelf: 'flex-end',
-        backgroundColor: '#6c63ff',
-        borderBottomRightRadius: 4,
+    messageBubbleMine: {
+        backgroundColor: '#1340EE',
+        borderBottomRightRadius: 5,
     },
-    theirMessage: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#1a1a2e',
-        borderBottomLeftRadius: 4,
+    messageBubbleTheirs: {
+        backgroundColor: '#F4F5F6',
+        borderBottomLeftRadius: 5,
     },
     messageText: {
-        fontSize: 15,
-        color: '#ffffff',
-        lineHeight: 20,
+        fontFamily: FONT_FAMILIES.clashRegular,
+    },
+    messageTextMine: {
+        color: '#FFFFFF',
+    },
+    messageTextTheirs: {
+        color: '#181818',
     },
     failedText: {
-        color: '#ff6b6b',
-        fontStyle: 'italic',
+        color: '#D33232',
     },
-    messageFooter: {
+    metaRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
         alignItems: 'center',
-        marginTop: 4,
-        gap: 4,
     },
-    messageTime: {
-        fontSize: 11,
-        color: 'rgba(255,255,255,0.5)',
+    metaRowMine: {
+        justifyContent: 'flex-end',
     },
-    messageStatus: {
-        fontSize: 11,
-        color: 'rgba(255,255,255,0.5)',
+    metaRowTheirs: {
+        justifyContent: 'flex-start',
     },
-    statusRead: {
-        color: '#4ade80',
+    metaTime: {
+        color: '#6A6A6A',
+        fontFamily: FONT_FAMILIES.clashRegular,
     },
-    statusFailed: {
-        color: '#ff6b6b',
+    metaStatus: {
+        marginLeft: 4,
+        fontFamily: FONT_FAMILIES.clashRegular,
     },
-    inputContainer: {
+    metaStatusOk: {
+        color: '#32B364',
+    },
+    metaStatusFailed: {
+        color: '#D33232',
+    },
+    callChip: {
+        minHeight: 42,
+        borderRadius: 22,
+        backgroundColor: '#DCDCDD',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 22,
+        paddingHorizontal: 14,
+    },
+    callChipText: {
+        color: '#6E6E6E',
+        fontFamily: FONT_FAMILIES.clashRegular,
+    },
+    composerWrap: {
+        borderTopWidth: 1,
+        borderTopColor: '#D0D2D5',
+        backgroundColor: '#D7DBDE',
+    },
+    composerRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#1a1a2e',
-        backgroundColor: '#0f0f18',
+    },
+    composerInputShell: {
+        flex: 1,
+        backgroundColor: '#F6F7F8',
+        borderRadius: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingLeft: 12,
+        paddingRight: 8,
+        marginRight: 10,
+        minHeight: 46,
+    },
+    inputLeadingIcon: {
+        marginRight: 8,
     },
     textInput: {
         flex: 1,
-        backgroundColor: '#1a1a2e',
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        fontSize: 15,
-        color: '#ffffff',
-        maxHeight: 100,
-        borderWidth: 1,
-        borderColor: '#2a2a3e',
+        color: '#181818',
+        fontFamily: FONT_FAMILIES.clashRegular,
+        paddingVertical: 9,
+        paddingHorizontal: 0,
+    },
+    inlineIconBtn: {
+        paddingHorizontal: 4,
+        paddingVertical: 6,
     },
     sendButton: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        backgroundColor: '#6c63ff',
-        justifyContent: 'center',
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        backgroundColor: '#1340EE',
         alignItems: 'center',
-        marginLeft: 8,
+        justifyContent: 'center',
     },
     sendButtonDisabled: {
-        opacity: 0.4,
-    },
-    sendButtonText: {
-        fontSize: 16,
-        color: '#ffffff',
+        opacity: 0.45,
     },
 });
 

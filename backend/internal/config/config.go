@@ -43,6 +43,7 @@ type Config struct {
 	PushWebhookURL                 string
 	PushWebhookAuthHeader          string
 	PushRequestTimeout             time.Duration
+	MaxDevicesPerUser              int
 }
 
 func Load() (*Config, error) {
@@ -85,6 +86,7 @@ func Load() (*Config, error) {
 		PushWebhookURL:                 getenv("PUSH_WEBHOOK_URL", ""),
 		PushWebhookAuthHeader:          getenv("PUSH_WEBHOOK_AUTH_HEADER", ""),
 		PushRequestTimeout:             getenvDuration("PUSH_REQUEST_TIMEOUT", 5*time.Second),
+		MaxDevicesPerUser:              getenvInt("MAX_DEVICES_PER_USER", 5),
 	}
 
 	priv, pub, err := loadOrGenerateEd25519Keypair()

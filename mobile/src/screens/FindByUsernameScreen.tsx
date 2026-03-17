@@ -10,8 +10,8 @@ import {
     KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ScreenHeader from '../components/ScreenHeader';
-import FooterSection from '../components/FooterSection';
+import ScreenHeader from '../components/common/ScreenHeader';
+import FooterSection from '../components/common/FooterSection';
 
 const C = {
     bg: '#EBEBEC',

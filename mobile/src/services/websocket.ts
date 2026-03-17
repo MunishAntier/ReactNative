@@ -169,24 +169,27 @@ class SecureWebSocket {
     }
 
     /**
-     * Send an encrypted message through WebSocket.
+     * Send a fan-out encrypted message with per-device ciphertexts (Rule 28).
      */
-    sendMessage(
-        conversationId: number | null,
+    sendFanOutMessage(
         receiverUserId: number,
         clientMessageId: string,
-        ciphertextB64: string,
-        header: Record<string, any>,
-        receiverDeviceId?: number,
+        ciphertexts: Array<{
+            receiver_device_id: number;
+            ciphertext_b64: string;
+            header: Record<string, any>;
+        }>,
+        conversationId: number | string | null = null,
+        messageType: 'text' | 'media' | 'call' | 'system' = 'text',
     ): void {
         this.send({
-            type: 'message.send',
+            type: 'message.send.fanout',
             conversation_id: conversationId,
             receiver_user_id: receiverUserId,
-            receiver_device_id: receiverDeviceId,
             client_message_id: clientMessageId,
-            ciphertext_b64: ciphertextB64,
-            header,
+            message_type: messageType,
+            sent_at: Date.now(),
+            ciphertexts,
         });
     }
 

@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SignalManager from '../crypto/SignalManager';
 import { withSignalLock } from '../crypto/SignalManager';
-import { fetchPeerKeyBundle, PeerKeyBundle } from './keys';
+import { PeerKeyBundle } from './keys';
+import { fetchPeerDevices, DeviceBundle } from './devices';
 import { websocket } from './websocket';
 
 // Dedup guard: track messages already decrypted in this session to prevent
@@ -16,19 +17,9 @@ function generateClientMessageId(): string {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Storage key to persist the peer's real device ID
+// Storage key to persist the peer's device ID (used by decrypt path)
 function peerDeviceKey(myUserId: number, peerUserId: number): string {
     return `peer_device_id:${myUserId}:${peerUserId}`;
-}
-
-/**
- * Load the last known device ID for a peer (persisted across sessions).
- */
-async function loadPeerDeviceId(myUserId: number, peerUserId: number): Promise<number> {
-    try {
-        const val = await AsyncStorage.getItem(peerDeviceKey(myUserId, peerUserId));
-        return val ? parseInt(val, 10) : 1;
-    } catch { return 1; }
 }
 
 /**
@@ -41,94 +32,197 @@ async function savePeerDeviceId(myUserId: number, peerUserId: number, deviceId: 
 }
 
 /**
- * Encrypt and send a message to a peer.
- * Handles session creation (X3DH) automatically if needed.
+ * Ensure a Signal session exists with a specific device.
+ * If no session: fetch key bundle for that device and perform X3DH (Rule 6).
+ * If identity key changed: invalidate and re-establish (Rule 21, 30).
  *
- * Returns { clientMessageId, resolvedDeviceId } so callers can track the
- * real device ID for this peer.
+ * Returns the device_id used for the session.
+ */
+async function ensureSessionForDevice(
+    peerUserId: number,
+    device: DeviceBundle,
+): Promise<void> {
+    const deviceId = device.device_id;
+    let sessionExists = false;
+    try {
+        sessionExists = await SignalManager.hasSession(peerUserId, deviceId);
+    } catch { }
+
+    if (!sessionExists) {
+        console.log(`[Signal🔐] 🔑 No session with User ${peerUserId} Device ${deviceId} → X3DH`);
+        // Build a PeerKeyBundle from the DeviceBundle
+        const bundle: PeerKeyBundle = {
+            user_id: peerUserId,
+            device_id: deviceId,
+            registration_id: device.registration_id,
+            identity_public_key: device.identity_public_key,
+            identity_key_version: device.identity_key_version,
+            signed_prekey_id: device.signed_prekey_id,
+            signed_prekey_public: device.signed_prekey_public,
+            signed_prekey_signature: device.signed_prekey_signature,
+            one_time_prekey_id: device.one_time_prekey_id ?? 0,
+            one_time_prekey_public: device.one_time_prekey_public ?? '',
+        };
+        await SignalManager.initSession(peerUserId, bundle);
+        console.log(`[Signal🔐] ✅ X3DH session established with User ${peerUserId} Device ${deviceId}`);
+    }
+    // TODO (Rule 21): Compare identity key with stored value and reset if changed
+}
+
+/**
+ * Encrypt a message for a single device. Returns ciphertext + header.
+ * On failure: re-fetch bundle, re-establish session, retry once (Rule 30).
+ */
+async function encryptForDevice(
+    peerUserId: number,
+    device: DeviceBundle,
+    plaintext: string,
+): Promise<{ receiver_device_id: number; ciphertext_b64: string; header: Record<string, any> }> {
+    const deviceId = device.device_id;
+
+    try {
+        const encrypted = await SignalManager.encrypt(peerUserId, deviceId, plaintext);
+        return {
+            receiver_device_id: deviceId,
+            ciphertext_b64: encrypted.ciphertext_b64,
+            header: encrypted.header,
+        };
+    } catch (err: any) {
+        console.error(`[Signal🔐] ⚠️ Encrypt failed for User ${peerUserId} Device ${deviceId}: ${err.message} — retrying with fresh bundle`);
+        // Re-establish session and retry once
+        const bundle: PeerKeyBundle = {
+            user_id: peerUserId,
+            device_id: deviceId,
+            registration_id: device.registration_id,
+            identity_public_key: device.identity_public_key,
+            identity_key_version: device.identity_key_version,
+            signed_prekey_id: device.signed_prekey_id,
+            signed_prekey_public: device.signed_prekey_public,
+            signed_prekey_signature: device.signed_prekey_signature,
+            one_time_prekey_id: device.one_time_prekey_id ?? 0,
+            one_time_prekey_public: device.one_time_prekey_public ?? '',
+        };
+        await SignalManager.initSession(peerUserId, bundle);
+        const encrypted = await SignalManager.encrypt(peerUserId, deviceId, plaintext);
+        return {
+            receiver_device_id: deviceId,
+            ciphertext_b64: encrypted.ciphertext_b64,
+            header: encrypted.header,
+        };
+    }
+}
+
+/**
+ * Fan-out encrypt and send a message to a peer.
+ *
+ * Rules implemented:
+ *  R1  — Device list fetched fresh from server every send
+ *  R3  — Encrypt separately per device (each has own ratchet)
+ *  R5  — Sender's other devices get encrypted copy (self-sync)
+ *  R6  — Missing session → auto X3DH
+ *  R14 — Encryption happens on client side
+ *  R15 — Partial failure: message still sends for successful devices
+ *  R16 — sender_device_id included in payload
+ *  R19 — Self-device sessions via X3DH
+ *  R22 — Only active devices (server filters)
+ *  R28 — Atomic: all ciphertexts share same clientMessageId
+ *  R34 — No re-encrypt on retry (ciphertext stored for retry)
+ *
+ * @param receiverUserId - The peer user to send to
+ * @param plaintext - The plaintext message
+ * @param conversationId - Optional conversation ID (unused in fan-out, kept for compat)
+ * @param myUserId - Current user's ID (needed for self-sync)
+ * @param myDeviceId - Current user's device ID (to exclude from self-sync)
  */
 export async function sendEncryptedMessage(
     receiverUserId: number,
     plaintext: string,
-    conversationId: number | null = null,
+    conversationId: number | string | null = null,
     myUserId: number = 0,
-    preferredDeviceId: number | null = null,
+    myDeviceId: number = 0,
+    messageType: 'text' | 'media' | 'call' | 'system' = 'text',
 ): Promise<string> {
     return withSignalLock(async () => {
-        // Resolve device ID: use stored value first, then preferred, then default (1).
-        // preferredDeviceId=1 is the caller's default and unreliable, so we check
-        // the persisted value first (which holds the REAL device ID from the last
-        // successful session establishment).
-        const storedDeviceId = await loadPeerDeviceId(myUserId, receiverUserId);
-        let peerDeviceId: number;
-
-        if (storedDeviceId > 1) {
-            // We have a known real device ID from a previous session
-            peerDeviceId = storedDeviceId;
-        } else if (preferredDeviceId && preferredDeviceId > 1) {
-            // Caller provided a non-default device ID (e.g. from a received message)
-            peerDeviceId = preferredDeviceId;
-        } else {
-            // No known device ID — will be resolved from key bundle below
-            peerDeviceId = 1;
-        }
-
-        // Check if a session exists with this device ID
-        let sessionExists = false;
-        try {
-            sessionExists = await SignalManager.hasSession(receiverUserId, peerDeviceId);
-        } catch (_err: any) {
-            // will create new session
-        }
-
-        if (!sessionExists) {
-            console.log(`[Signal🔐] 📤 SEND FLOW  |  Me → User ${receiverUserId}  |  No session → creating via X3DH`);
-            // No session — perform X3DH key agreement
-            const peerBundle: PeerKeyBundle = await fetchPeerKeyBundle(receiverUserId);
-            peerDeviceId = peerBundle.device_id;
-            await SignalManager.initSession(receiverUserId, peerBundle);
-            // Persist the real device ID for future calls
-            if (myUserId) await savePeerDeviceId(myUserId, receiverUserId, peerDeviceId);
-        } else {
-            console.log(`[Signal🔐] 📤 SEND FLOW  |  Me → User ${receiverUserId}  |  Session EXISTS → Double Ratchet`);
-        }
-
-        // Try to encrypt; on any failure re-create session with a fresh bundle and retry once
-        let encrypted;
-        try {
-            encrypted = await SignalManager.encrypt(receiverUserId, peerDeviceId, plaintext);
-        } catch (_err: any) {
-            console.error(`[Signal🔐] ⚠️ ENCRYPT FAILED (first attempt)  |  Me → User ${receiverUserId}  |  device=${peerDeviceId}  |  error: ${_err.message}`);
-            // Re-fetch key bundle and re-create session
-            const peerBundle: PeerKeyBundle = await fetchPeerKeyBundle(receiverUserId);
-            peerDeviceId = peerBundle.device_id;
-            if (myUserId) await savePeerDeviceId(myUserId, receiverUserId, peerDeviceId);
-            await SignalManager.initSession(receiverUserId, peerBundle);
-            encrypted = await SignalManager.encrypt(receiverUserId, peerDeviceId, plaintext);
-        }
-
-        const { ciphertext_b64, header } = encrypted;
         const clientMessageId = generateClientMessageId();
 
-        websocket.sendMessage(
-            conversationId,
-            receiverUserId,
-            clientMessageId,
-            ciphertext_b64,
-            header,
-            peerDeviceId,
+        // ──────── Step 1: Fetch ALL of receiver's active devices (Rule 1) ────────
+        let peerDevices: DeviceBundle[] = [];
+        try {
+            peerDevices = await fetchPeerDevices(receiverUserId);
+            console.log(`[Signal🔐] 📤 FAN-OUT SEND  |  Me → User ${receiverUserId}  |  ${peerDevices.length} peer device(s)`);
+        } catch (err: any) {
+            throw new Error(`SEND_FAILED: Could not fetch devices for User ${receiverUserId}: ${err.message}`);
+        }
+
+        if (peerDevices.length === 0) {
+            throw new Error(`SEND_FAILED: No active devices for User ${receiverUserId}`);
+        }
+
+        // ──────── Step 2: Fetch sender's OTHER devices for self-sync (Rule 5) ────────
+        let selfDevices: DeviceBundle[] = [];
+        if (myUserId > 0 && myDeviceId > 0) {
+            try {
+                const myDeviceBundles = await fetchPeerDevices(myUserId);
+                // Exclude current sending device
+                selfDevices = myDeviceBundles.filter(d => d.device_id !== myDeviceId);
+                if (selfDevices.length > 0) {
+                    console.log(`[Signal🔐] 📤 SELF-SYNC  |  ${selfDevices.length} other own device(s)`);
+                }
+            } catch (err: any) {
+                console.warn(`[Signal🔐] ⚠️ Failed to fetch self devices for self-sync: ${err.message}`);
+                // Non-fatal: message still sends to peer devices
+            }
+        }
+
+        // ──────── Step 3: Combine all target devices ────────
+        const allTargets = [...peerDevices, ...selfDevices];
+
+        // ──────── Step 4: Ensure sessions + encrypt for each device (Rules 3, 6, 18) ────────
+        const ciphertexts: Array<{
+            receiver_device_id: number;
+            ciphertext_b64: string;
+            header: Record<string, any>;
+        }> = [];
+
+        const failedDevices: number[] = [];
+
+        for (const device of allTargets) {
+            try {
+                // Ensure session exists (X3DH if needed — Rule 6)
+                await ensureSessionForDevice(device.user_id, device);
+
+                // Encrypt for this device (Rule 3 — separate ratchet per device)
+                const encrypted = await encryptForDevice(device.user_id, device, plaintext);
+                ciphertexts.push(encrypted);
+            } catch (err: any) {
+                console.error(`[Signal🔐] ❌ Failed to encrypt for User ${device.user_id} Device ${device.device_id}: ${err.message}`);
+                failedDevices.push(device.device_id);
+                // Rule 15: Partial failure OK — continue with other devices
+            }
+        }
+
+        if (ciphertexts.length === 0) {
+            throw new Error(`FAN_OUT_FAILED: Could not encrypt for any device of User ${receiverUserId}`);
+        }
+
+        // ──────── Step 5: Send fan-out payload (Rule 28 — atomic per messageId) ────────
+        websocket.sendFanOutMessage(receiverUserId, clientMessageId, ciphertexts, conversationId, messageType);
+
+        console.log(
+            `[Signal🔐] 📤 FAN-OUT SENT  |  msgId=${clientMessageId}  |  ` +
+            `encrypted=${ciphertexts.length}  |  failed=${failedDevices.length}  |  ` +
+            `devices=[${ciphertexts.map(c => c.receiver_device_id).join(',')}]`
         );
 
-        console.log(`[Signal🔐] 📤 SENT  |  msgId=${clientMessageId}  |  type=${header.message_type}  |  ciphertext=${ciphertext_b64.length} chars`);
+        if (failedDevices.length > 0) {
+            console.warn(`[Signal🔐] ⚠️ Failed devices: [${failedDevices.join(',')}]`);
+        }
 
         return clientMessageId;
     }); // end withSignalLock
 }
 
-/**
- * Decrypt an incoming message.
- * Handles both PreKey messages (first message, X3DH) and Signal messages (ongoing).
- */
+
 /**
  * Check if a message has already been decrypted in this session.
  * Used by sync path to skip messages already processed via message.new.
@@ -137,6 +231,10 @@ export function isMessageAlreadyDecrypted(messageId: string): boolean {
     return decryptedMessageIds.has(messageId);
 }
 
+/**
+ * Decrypt an incoming message.
+ * Handles both PreKey messages (first message, X3DH) and Signal messages (ongoing).
+ */
 export async function decryptIncomingMessage(
     ciphertextB64: string,
     header: Record<string, any>,

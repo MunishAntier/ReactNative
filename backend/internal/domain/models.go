@@ -18,9 +18,38 @@ type Device struct {
 	DeviceUUID string     `json:"device_uuid"`
 	Platform   string     `json:"platform"`
 	PushToken  *string    `json:"push_token,omitempty"`
+	IsActive   bool       `json:"is_active"`
 	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+// DeviceWithKeys combines device info + its key bundle for fan-out encryption.
+type DeviceWithKeys struct {
+	DeviceID              int64  `json:"device_id"`
+	UserID                int64  `json:"user_id"`
+	Platform              string `json:"platform"`
+	RegistrationID        int    `json:"registration_id"`
+	IdentityPublicKey     string `json:"identity_public_key"`
+	IdentityKeyVersion    int    `json:"identity_key_version"`
+	SignedPreKeyID        int64  `json:"signed_prekey_id"`
+	SignedPreKeyPublic    string `json:"signed_prekey_public"`
+	SignedPreKeySignature string `json:"signed_prekey_signature"`
+	OneTimePreKeyID       *int64 `json:"one_time_prekey_id,omitempty"`
+	OneTimePreKeyPublic   *string `json:"one_time_prekey_public,omitempty"`
+}
+
+// MessageRecipient stores per-device ciphertext for fan-out messages.
+type MessageRecipient struct {
+	ID               int64      `json:"id"`
+	MessageID        int64      `json:"message_id"`
+	ReceiverDeviceID int64      `json:"receiver_device_id"`
+	Ciphertext       []byte     `json:"ciphertext"`
+	HeaderJSON       string     `json:"header_json"`
+	Status           string     `json:"status"`
+	DeliveredAt      *time.Time `json:"delivered_at,omitempty"`
+	ReadAt           *time.Time `json:"read_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 type DeviceKey struct {

@@ -11,8 +11,8 @@ import {
     FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ScreenHeader from '../components/ScreenHeader';
-import FooterSection from '../components/FooterSection';
+import ScreenHeader from '../components/common/ScreenHeader';
+import FooterSection from '../components/common/FooterSection';
 import * as Contacts from 'expo-contacts';
 
 // -- Constants --
@@ -79,7 +79,7 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
-    const filteredContacts = contacts.filter(c => 
+    const filteredContacts = contacts.filter(c =>
         (c.name || '').toLowerCase().includes(searchText.toLowerCase())
     );
 
@@ -92,9 +92,9 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
     };
 
     const renderActionItem = (item: typeof ACTION_ITEMS[0]) => (
-        <TouchableOpacity 
-            key={item.id} 
-            style={styles.actionRow} 
+        <TouchableOpacity
+            key={item.id}
+            style={styles.actionRow}
             activeOpacity={0.7}
             onPress={() => {
                 if (item.id === 'username') navigation?.navigate('FindByUsername');
@@ -112,8 +112,8 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
     const renderContactItem = ({ item }: { item: ContactItem }) => {
         const isSelected = selectedIds.includes(item.id);
         return (
-            <TouchableOpacity 
-                style={styles.contactRow} 
+            <TouchableOpacity
+                style={styles.contactRow}
                 activeOpacity={0.7}
                 onPress={() => toggleSelection(item.id)}
             >
@@ -131,10 +131,10 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
-            
-            <ScreenHeader 
-                title="Select Members" 
-                onBack={() => navigation?.goBack()} 
+
+            <ScreenHeader
+                title="Select Members"
+                onBack={() => navigation?.goBack()}
             />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -177,9 +177,9 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
             </ScrollView>
 
             {/* Footer */}
-            <FooterSection 
-                buttonTitle="Continue" 
-                onButtonPress={() => console.log('Continue with:', selectedIds)} 
+            <FooterSection
+                buttonTitle="Continue"
+                onButtonPress={() => console.log('Continue with:', selectedIds)}
             />
         </View>
     );
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
-        borderBottomWidth:1,
+        borderBottomWidth: 1,
         borderBottomColor: '#D0D0D0',
     },
     actionIconBox: {

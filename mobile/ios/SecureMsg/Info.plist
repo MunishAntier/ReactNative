@@ -75,5 +75,14 @@
 	<string>SecureMsg needs access to your photo library to save photos.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>SecureMsg needs access to your contacts to find friends.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>ClashDisplay-Medium.otf</string>
+		<string>ClashDisplay-Semibold.otf</string>
+		<string>ClashDisplay-Light.otf</string>
+		<string>ClashDisplay-Bold.otf</string>
+		<string>ClashDisplay-Regular.otf</string>
+		<string>ClashDisplay-Extralight.otf</string>
+	</array>
 </dict>
 </plist>

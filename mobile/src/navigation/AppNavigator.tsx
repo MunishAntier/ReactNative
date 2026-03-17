@@ -5,14 +5,19 @@ import { useFonts } from 'expo-font';
 import { loadTokens } from '../services/api';
 import { logout, loadUserInfo } from '../services/auth';
 import { websocket } from '../services/websocket';
-import { permissionManager } from '../services/PermissionManager'; // New Service
+import { permissionManager } from '../services/PermissionManager';
 import * as SignalManager from '../crypto/SignalManager';
 
 // Screens
-// import LoginScreen from '../screens/LoginScreen';
-// import ConversationsScreen from '../screens/ConversationsScreen';
-// import ChatScreen from '../screens/ChatScreen';
-import PermissionScreen from '../screens/PermissionScreen'; // New Screen
+import SplashScreen from '../screens/SplashScreen';
+import LoginScreen from '../screens/LoginScreen';
+import ConversationsScreen from '../screens/ConversationsScreen';
+import type { ConversationPeerMeta } from '../screens/ConversationsScreen';
+import ChatScreen from '../screens/ChatScreen';
+import SecretScreen from '../screens/SecretScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import CharacterScreen from '../screens/CharacterScreen';
+import PermissionScreen from '../screens/PermissionScreen';
 import VerifyScreen from '../screens/VerifyScreen';
 import CreatePINScreen from '../screens/CreatePINScreen';
 import ConfirmPINScreen from '../screens/ConfirmPINScreen';
@@ -24,61 +29,46 @@ import SelectMemberScreen from '../screens/SelectMemberScreen';
 import FindByUsernameScreen from '../screens/FindByUsernameScreen';
 import FindByPhoneNumberScreen from '../screens/FindByPhoneNumberScreen';
 
-
 type Screen =
-    | 'loading'
-    | 'permissions'
-    | 'verify'
-    | 'create_pin'
-    | 'confirm_pin'
-    | 'home'
-    | 'call_menu'
-    // | 'login'
-    | 'phone'
-    | 'success'
-    | 'select_contact'
-    | 'select_member'
-    | 'find_by_username'
-    | 'find_by_phone'
-    /*
+    | { name: 'loading' }
+    | { name: 'permissions' }
+    | { name: 'phone' }
+    | { name: 'verify'; phoneNumber: string }
+    | { name: 'create_pin' }
+    | { name: 'confirm_pin'; createdPin: string }
+    | { name: 'home' }
+    | { name: 'call_menu' }
+    | { name: 'select_contact' }
+    | { name: 'select_member' }
+    | { name: 'find_by_username' }
+    | { name: 'find_by_phone' }
+    | { name: 'login' }
+    | { name: 'profile' }
+    | { name: 'character' }
+    | { name: 'secret'; userId: number; deviceId: number }
     | { name: 'conversations'; userId: number; deviceId: number }
     | {
         name: 'chat';
         userId: number;
+        deviceId: number;
         conversationId: number | null;
         peerUserId: number;
-    }
-    */;
-
-export type RootStackParamList = {
-    // login: undefined;
-    permissions: undefined;
-    verify: { phoneNumber: string };
-    create_pin: undefined;
-    confirm_pin: { pin: string };
-    phone: undefined;
-    home: undefined;
-    // conversations: { userId: number; deviceId: number };
-    // chat: { userId: number; conversationId: number | null; peerUserId: number };
-};
+        peerDisplayName?: string;
+        peerAvatar?: string | null;
+    };
 
 const AppNavigator: React.FC = () => {
-    /*
     const [fontsLoaded] = useFonts({
         'ClashDisplay-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
         'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
         'ClashDisplay-Bold': require('../assets/fonts/ClashDisplay-Bold.otf'),
-        'Gilroy-Medium': require('../assets/fonts/Gilroy-Medium.otf'),
-
+        'Gilroy-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
+        'Gilroy-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
     });
-    */
-    const fontsLoaded = true; // Temporary fallback until font files are added
 
-
-    const [screen, setScreen] = useState<Screen>('permissions');
+    const [screen, setScreen] = useState<Screen>({ name: 'loading' });
     const [history, setHistory] = useState<Screen[]>([]);
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [createdPin, setCreatedPin] = useState('');
+    const [showSplash, setShowSplash] = useState(true);
 
     const navigateTo = useCallback((nextScreen: Screen) => {
         setHistory(prev => [...prev, screen]);
@@ -91,26 +81,12 @@ const AppNavigator: React.FC = () => {
             setHistory(prev => prev.slice(0, -1));
             setScreen(lastScreen);
         } else {
-            setScreen('home');
+            setScreen({ name: 'home' });
         }
     }, [history]);
 
-
     const checkAppStatus = useCallback(async () => {
-        // 1. Hardware Check (The Gatekeeper)
-        const isHardwareReady = await permissionManager.checkAllMandatory();
-        if (!isHardwareReady) {
-            setScreen('permissions');
-            return;
-        }
-
-        // transition after permissions to phone screen
-        setScreen('phone');
-        return;
-
-        /*
-        // 2. Auth Check
-
+        // 1. Auth Check: Verify if the user is already logged in
         const tokens = await loadTokens();
         if (tokens?.accessToken) {
             const userInfo = await loadUserInfo();
@@ -123,87 +99,145 @@ const AppNavigator: React.FC = () => {
                 console.error("Signal Init Failed", err);
             }
 
-            setScreen({ name: 'conversations', userId, deviceId });
+            setScreen({ name: 'home' });
             websocket.connect(userId);
         } else {
+            // Default to login screen as the entry point
             setScreen({ name: 'login' });
         }
-        */
     }, []);
 
-    // Initial Bootstrap
+    // Initial Bootstrap: Run the app status check once fonts are loaded
     useEffect(() => {
-        checkAppStatus();
-    }, [checkAppStatus]);
+        if (fontsLoaded) {
+            checkAppStatus();
+        }
+    }, [fontsLoaded, checkAppStatus]);
 
-    // Re-check permissions if user returns from System Settings
+    // Re-check permissions if user returns from System Settings while on the permissions screen
     useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextStatus: AppStateStatus) => {
-            if (nextStatus === 'active') {
-                // Auto-continue disabled: User must manually click "Continue"
-                // in the PermissionScreen to proceed.
-                // checkAppStatus();
+        const subscription = AppState.addEventListener('change', async (nextStatus: AppStateStatus) => {
+            if (nextStatus === 'active' && screen.name === 'permissions') {
+                const isHardwareReady = await permissionManager.checkAllMandatory();
+                if (isHardwareReady) {
+                    setScreen({ name: 'phone' });
+                }
             }
         });
         return () => subscription.remove();
-    }, [checkAppStatus]);
+    }, [screen.name]);
 
-    /*
+    /**
+     * Logic for standard login success.
+     * Triggered when the user enters a valid OTP and no new keys need to be displayed.
+     * Navigates directly to the list of conversations and connects the WebSocket.
+     */
     const handleLoginSuccess = useCallback(async (userId: number, deviceId: number) => {
         setScreen({ name: 'conversations', userId, deviceId });
         websocket.connect(userId);
     }, []);
 
+    /**
+     * Logic for showing the 'Secret' screen (Signal keys/recovery phrase).
+     * Triggered during the first-time login on a device or when a new identity is generated.
+     * Displays the secret screen for 3 seconds before automatically transitioning to the main app.
+     */
+    const handleShowSecret = useCallback((userId: number, deviceId: number) => {
+        setScreen({ name: 'secret', userId, deviceId });
+        setTimeout(() => {
+            setScreen({ name: 'home' });
+            websocket.connect(userId);
+        }, 3000);
+    }, []);
+
+    /**
+     * Logic for logging out the user.
+     * Disconnects the WebSocket, clears server-side session/tokens, and wipes local Signal keys
+     * before returning the user to the login screen.
+     */
     const handleLogout = useCallback(async () => {
         websocket.disconnect();
         await logout();
-        await SignalManager.clearAll();
-        setScreen('login');
-    }, []);
-    */
+        if (screen.name === 'conversations' || screen.name === 'chat' || screen.name === 'secret') {
+            await SignalManager.clearAll();
+        }
+        setScreen({ name: 'login' });
+    }, [screen]);
 
-    /*
+    const handleGoToProfile = useCallback(() => {
+        setScreen({ name: 'profile' });
+    }, []);
+
+    const handleGoBackFromProfile = useCallback(() => {
+        setScreen({ name: 'login' });
+    }, []);
+
+    const handleGoToSecretFromProfile = useCallback(() => {
+        setScreen({ name: 'secret', userId: 0, deviceId: 0 });
+    }, []);
+
+    const handleGoToCharacter = useCallback(() => {
+        setScreen({ name: 'character' });
+    }, []);
+
+    const handleCloseCharacter = useCallback(() => {
+        setScreen({ name: 'profile' });
+    }, []);
+
     const handleSelectConversation = useCallback(
-        (conversationId: number, peerUserId: number) => {
-            if (typeof screen === 'object' && screen.name === 'conversations') {
-                setScreen({
-                    name: 'chat',
-                    userId: screen.userId,
-                    conversationId,
-                    peerUserId,
-                });
-            }
+        (conversationId: number, peerUserId: number, peerMeta?: ConversationPeerMeta) => {
+            if (screen.name !== 'conversations') return;
+            setScreen({
+                name: 'chat',
+                userId: screen.userId,
+                deviceId: screen.deviceId,
+                conversationId,
+                peerUserId,
+                peerDisplayName: peerMeta?.peerDisplayName,
+                peerAvatar: peerMeta?.peerAvatar ?? null,
+            });
         },
         [screen],
     );
 
     const handleStartNewChat = useCallback(
-        (peerUserId: number) => {
-            if (typeof screen === 'object' && screen.name === 'conversations') {
-                setScreen({
-                    name: 'chat',
-                    userId: screen.userId,
-                    conversationId: null,
-                    peerUserId,
-                });
-            }
+        (peerUserId: number, peerMeta?: ConversationPeerMeta) => {
+            if (screen.name !== 'conversations') return;
+            setScreen({
+                name: 'chat',
+                userId: screen.userId,
+                deviceId: screen.deviceId,
+                conversationId: null,
+                peerUserId,
+                peerDisplayName: peerMeta?.peerDisplayName,
+                peerAvatar: peerMeta?.peerAvatar ?? null,
+            });
         },
         [screen],
     );
 
     const handleGoBack = useCallback(() => {
-        if (typeof screen === 'object' && screen.name === 'chat') {
+        if (screen.name === 'chat') {
             setScreen({
                 name: 'conversations',
                 userId: screen.userId,
-                deviceId: 0,
+                deviceId: screen.deviceId,
             });
+        } else {
+            goBack();
         }
-    }, [screen]);
-    */
+    }, [screen, goBack]);
 
-    // While determining initial state or loading fonts, show a clean background
-    if (screen === 'loading' || !fontsLoaded) {
+    if (showSplash) {
+        return (
+            <>
+                <StatusBar barStyle="light-content" backgroundColor="#000000" />
+                <SplashScreen onFinish={() => setShowSplash(false)} />
+            </>
+        );
+    }
+
+    if (screen.name === 'loading' || !fontsLoaded) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0a0f' }}>
                 <ActivityIndicator size="large" color="#6c63ff" />
@@ -211,138 +245,185 @@ const AppNavigator: React.FC = () => {
         );
     }
 
+    const renderScreen = () => {
+        switch (screen.name) {
+            case 'permissions':
+                return <PermissionScreen onFinished={() => setScreen({ name: 'phone' })} />;
+            case 'login':
+                // Renders the Login screen with essential navigation callbacks
+                return (
+                    <LoginScreen
+                        // handleLoginSuccess handles standard routing to home screen
+                        onLoginSuccess={() => setScreen({ name: 'home' })}
+                        // onShowSecret handles new-identity key recovery phase (Signal protection)
+                        onShowSecret={handleShowSecret}
+                        // Provides a link to the profile screen (usually for app testing or previews)
+                        onGoToProfile={handleGoToProfile}
+                        // Move to permissions check
+                        onContinue={() => setScreen({ name: 'permissions' })}
+                    />
+                );
+            case 'phone':
+                return (
+                    <PhoneScreen
+                        onBack={goBack}
+                        onNext={(num: string) => navigateTo({ name: 'verify', phoneNumber: num })}
+                    />
+                );
+            case 'verify':
+                return (
+                    <VerifyScreen
+                        phoneNumber={screen.phoneNumber}
+                        onVerify={() => setScreen({ name: 'profile' })}
+                        onBack={goBack}
+                    />
+                );
+            case 'create_pin':
+                return (
+                    <CreatePINScreen
+                        onBack={goBack}
+                        onContinue={(pin) => navigateTo({ name: 'confirm_pin', createdPin: pin })}
+                    />
+                );
+            case 'confirm_pin':
+                return (
+                    <ConfirmPINScreen
+                        onBack={goBack}
+                        onContinue={(pin) => {
+                            if (pin === screen.createdPin) {
+                                navigateTo({ name: 'home' });
+                            } else {
+                                console.log('PINs do not match');
+                            }
+                        }}
+                    />
+                );
+            case 'home':
+                return (
+                    <HomeScreen
+                        onTabPress={(key) => {
+                            if (key === 'calls') navigateTo({ name: 'call_menu' });
+                        }}
+                        onGetStartedItem={(key) => {
+                            if (key === 'invite') navigateTo({ name: 'select_contact' });
+                            if (key === 'group') navigateTo({ name: 'select_member' });
+                        }}
+                    />
+                );
+            case 'profile':
+                return <ProfileScreen 
+                    onGoBack={() => setScreen({ name: 'login' })} 
+                    onSave={() => setScreen({ name: 'create_pin' })} 
+                    onEditAvatar={handleGoToCharacter} 
+                />;
+            case 'character':
+                return <CharacterScreen onClose={handleCloseCharacter} />;
+            case 'secret':
+                return <SecretScreen />;
+            case 'conversations':
+                return (
+                    <ConversationsScreen
+                        userId={screen.userId}
+                        onSelectConversation={handleSelectConversation}
+                        onStartNewChat={handleStartNewChat}
+                        onLogout={handleLogout}
+                    />
+                );
+            case 'chat':
+                return (
+                    <ChatScreen
+                        conversationId={screen.conversationId}
+                        peerUserId={screen.peerUserId}
+                        myUserId={screen.userId}
+                        myDeviceId={screen.deviceId}
+                        peerDisplayName={screen.peerDisplayName}
+                        peerAvatar={screen.peerAvatar}
+                        onGoBack={handleGoBack}
+                    />
+                );
+            case 'create_pin':
+                return (
+                    <CreatePINScreen
+                        onBack={goBack}
+                        onContinue={(pin) => navigateTo({ name: 'confirm_pin', createdPin: pin })}
+                    />
+                );
+            case 'confirm_pin':
+                return (
+                    <ConfirmPINScreen
+                        onBack={goBack}
+                        onContinue={(pin) => {
+                            if (pin === screen.createdPin) {
+                                handleShowSecret(0, 0); // Trigger secret screen then home
+                            } else {
+                                console.log('PINs do not match');
+                            }
+                        }}
+                    />
+                );
+            case 'select_contact':
+                return (
+                    <SelectContactScreen
+                        navigation={{
+                            goBack: goBack,
+                            navigate: (to: string) => {
+                                if (to === 'FindByUsername') navigateTo({ name: 'find_by_username' });
+                                if (to === 'FindByPhoneNumber') navigateTo({ name: 'find_by_phone' });
+                            }
+                        }}
+                        onNewGroup={() => navigateTo({ name: 'select_member' })}
+                    />
+                );
+            case 'select_member':
+                return (
+                    <SelectMemberScreen
+                        navigation={{
+                            goBack: goBack,
+                            navigate: (to: string) => {
+                                if (to === 'FindByUsername') navigateTo({ name: 'find_by_username' });
+                                if (to === 'FindByPhoneNumber') navigateTo({ name: 'find_by_phone' });
+                            }
+                        }}
+                    />
+                );
+            case 'find_by_username':
+                return (
+                    <FindByUsernameScreen
+                        onBack={goBack}
+                        onContinue={(username) => {
+                            console.log('Finding username:', username);
+                            navigateTo({ name: 'home' });
+                        }}
+                    />
+                );
+            case 'find_by_phone':
+                return (
+                    <FindByPhoneNumberScreen
+                        onBack={goBack}
+                        onContinue={(phone) => {
+                            console.log('Finding phone:', phone);
+                            navigateTo({ name: 'home' });
+                        }}
+                    />
+                );
+            case 'call_menu':
+                return (
+                    <CallMenu onTabPress={(key) => {
+                        if (key === 'chat') goBack();
+                    }} />
+                );
+            default:
+                return null;
+        }
+    };
 
     return (
         <>
-            <StatusBar barStyle="dark-content" backgroundColor="#e9edf1" />
-
-            {screen === 'permissions' && (
-                <PermissionScreen onFinished={checkAppStatus} />
-            )}
-
-            {screen === 'phone' && (
-                <PhoneScreen
-                    onBack={goBack}
-                    onNext={(num: string) => {
-                        setPhoneNumber(num);
-                        navigateTo('verify');
-                    }}
-                />
-            )}
-
-            {screen === 'verify' && (
-                <VerifyScreen
-                    phoneNumber={phoneNumber}
-                    onVerify={() => navigateTo('create_pin')}
-                    onBack={goBack}
-                />
-            )}
-
-            {screen === 'create_pin' && (
-                <CreatePINScreen
-                    onBack={goBack}
-                    onContinue={(pin) => {
-                        setCreatedPin(pin);
-                        navigateTo('confirm_pin');
-                    }}
-                />
-            )}
-
-            {screen === 'confirm_pin' && (
-                <ConfirmPINScreen
-                    onBack={goBack}
-                    onContinue={(pin) => {
-                        if (pin === createdPin) {
-                            console.log('PIN Onboarding Complete');
-                            navigateTo('home');
-                        } else {
-                            // Handle mismatch (e.g., alert)
-                            console.log('PINs do not match');
-                        }
-                    }}
-                />
-            )}
-
-            {/* 
-            {screen === 'login' && (
-                <LoginScreen onLoginSuccess={handleLoginSuccess} />
-            )}
-
-            {typeof screen === 'object' && screen.name === 'conversations' && (
-                <ConversationsScreen
-                    userId={screen.userId}
-                    onSelectConversation={handleSelectConversation}
-                    onStartNewChat={handleStartNewChat}
-                    onLogout={handleLogout}
-                />
-            )}
-
-            {typeof screen === 'object' && screen.name === 'chat' && (
-                <ChatScreen
-                    conversationId={screen.conversationId}
-                    peerUserId={screen.peerUserId}
-                    myUserId={screen.userId}
-                    onGoBack={handleGoBack}
-                />
-            )}
-            */}
-            {screen === 'home' && (
-                <HomeScreen 
-                    onTabPress={(key) => {
-                        if (key === 'calls') navigateTo('call_menu');
-                    }} 
-                    onGetStartedItem={(key) => {
-                        if (key === 'invite') navigateTo('select_contact');
-                        if (key === 'group') navigateTo('select_member');
-                    }}
-                />
-            )}
-            {screen === 'select_contact' && (
-                <SelectContactScreen 
-                    navigation={{ 
-                        goBack: goBack,
-                        navigate: (to: string) => {
-                            if (to === 'FindByUsername') navigateTo('find_by_username');
-                            if (to === 'FindByPhoneNumber') navigateTo('find_by_phone');
-                        }
-                    }} 
-                    onNewGroup={() => navigateTo('select_member')}
-                />
-            )}
-            {screen === 'select_member' && (
-                <SelectMemberScreen 
-                    navigation={{ 
-                        goBack: goBack,
-                        navigate: (to: string) => {
-                            if (to === 'FindByUsername') navigateTo('find_by_username');
-                            if (to === 'FindByPhoneNumber') navigateTo('find_by_phone');
-                        }
-                    }} 
-                />
-            )}
-            {screen === 'find_by_username' && (
-                <FindByUsernameScreen 
-                    onBack={goBack}
-                    onContinue={(username) => {
-                        console.log('Finding username:', username);
-                        navigateTo('home');
-                    }}
-                />
-            )}
-            {screen === 'find_by_phone' && (
-                <FindByPhoneNumberScreen 
-                    onBack={goBack}
-                    onContinue={(phone) => {
-                        console.log('Finding phone:', phone);
-                        navigateTo('home');
-                    }}
-                />
-            )}
-            {screen === 'call_menu' && (
-                <CallMenu onTabPress={(key) => {
-                    if (key === 'chat') goBack();
-                }} />
-            )}
+            <StatusBar
+                barStyle={screen.name === 'chat' ? 'dark-content' : 'light-content'}
+                backgroundColor={screen.name === 'chat' ? '#D7DBDE' : '#000000'}
+            />
+            {renderScreen()}
         </>
     );
 };

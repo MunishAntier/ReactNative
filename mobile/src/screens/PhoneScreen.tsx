@@ -24,10 +24,10 @@ import {
     FlagType,
 } from 'react-native-country-picker-modal';
 
-import HeroSection from '../components/HeroSection';
-import FooterSection from '../components/FooterSection';
+import HeroSection from '../components/common/HeroSection';
+import FooterSection from '../components/common/FooterSection';
 
-import CountryPickerModal from '../components/CountryPickerModal';
+import CountryPickerModal from '../components/common/CountryPickerModal';
 
 interface Props {
     onBack?: () => void;
@@ -56,7 +56,7 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
                 if (au && au.flag) {
                     setCountryFlag(au.flag);
                 }
-            } catch (err) {}
+            } catch (err) { }
         };
         fetchInitial();
     }, []);
@@ -183,7 +183,7 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
 
             </KeyboardAvoidingView>
 
-            <CountryPickerModal 
+            <CountryPickerModal
                 visible={isPickerVisible}
                 onClose={() => setIsPickerVisible(false)}
                 onSelect={onSelect}

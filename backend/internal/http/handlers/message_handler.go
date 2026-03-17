@@ -62,7 +62,8 @@ func (h *Handler) SyncMessages(c *gin.Context) {
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
-	msgs, err := h.Message.Sync(c.Request.Context(), userID, since, limit)
+	deviceID := middleware.CurrentDeviceID(c)
+	msgs, err := h.Message.Sync(c.Request.Context(), userID, deviceID, since, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

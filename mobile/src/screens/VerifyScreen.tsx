@@ -16,8 +16,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import HeroSection from '../components/HeroSection';
-import FooterSection from '../components/FooterSection';
+import HeroSection from '../components/common/HeroSection';
+import FooterSection from '../components/common/FooterSection';
 
 const CODE_LENGTH = 4;
 

@@ -18,7 +18,7 @@ interface HeroSectionProps {
     height?: number;
 }
 
-const DEFAULT_HERO_IMAGE = require('../assets/images/profile_setup_top.png');
+const DEFAULT_HERO_IMAGE = require('../../assets/images/profile_setup_top.png');
 const DEFAULT_HEIGHT = 200;
 
 const HeroSection: React.FC<HeroSectionProps> = ({
@@ -89,7 +89,6 @@ const styles = StyleSheet.create({
     heroTitle: {
         fontFamily: 'ClashDisplay-Medium',
         fontSize: 28,
-        fontWeight: '500',
         color: '#FFFFFF',
         lineHeight: 34,
         letterSpacing: -0.5,

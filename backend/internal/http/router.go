@@ -34,7 +34,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, redis *redis.Client) *App {
 	tokenManager := security.NewTokenManager(cfg.JWTIssuer, cfg.JWTPrivateKey, cfg.JWTPublicKey, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
 	hub := ws.NewHub()
 	otpService := service.NewOTPService(redis, cfg.OTPTTL, cfg.OTPMaxAttempts, cfg.RateLimitPerMinute)
-	authService := service.NewAuthService(store, otpService, tokenManager, cfg.OTPDevExpose)
+	authService := service.NewAuthService(store, otpService, tokenManager, cfg.OTPDevExpose, cfg.MaxDevicesPerUser)
 	auditService := service.NewAuditService(store)
 	keyService := service.NewKeyService(
 		store,
@@ -55,7 +55,7 @@ func NewRouter(cfg *config.Config, db *sql.DB, redis *redis.Client) *App {
 		cfg.PushRequestTimeout,
 	)
 	messageService := service.NewMessageService(store, hub, pushService, cfg.MessageRetentionDays)
-	h := handlers.New(authService, keyService, messageService, auditService, metricsCollector, tokenManager, hub, redis, db)
+	h := handlers.New(authService, keyService, messageService, auditService, metricsCollector, tokenManager, hub, redis, db, store)
 
 	v1 := r.Group("/v1")
 	v1.GET("/health", h.Health)
@@ -79,6 +79,9 @@ func NewRouter(cfg *config.Config, db *sql.DB, redis *redis.Client) *App {
 	authed.GET("/conversations", h.ListConversations)
 	authed.GET("/messages/sync", middleware.RateLimit(redis, "messages_sync", cfg.RateLimitMessagesSyncPerMinute), h.SyncMessages)
 	authed.POST("/messages/:id/read", middleware.RateLimit(redis, "message_read", cfg.RateLimitMessageReadPerMinute), h.MarkMessageRead)
+	authed.GET("/users/:user_id/devices", h.ListUserDevices)
+	authed.GET("/devices/me", h.ListMyDevices)
+	authed.DELETE("/devices/:device_id", h.UnlinkDevice)
 
 	return &App{Engine: r, Hub: hub}
 }

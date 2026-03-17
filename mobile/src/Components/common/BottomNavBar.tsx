@@ -7,7 +7,7 @@ import {
     Platform,
 } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { ICONS } from '../assets/icons/navIcons';
+import { ICONS } from '../../assets/icons/navIcons';
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
 const C = {

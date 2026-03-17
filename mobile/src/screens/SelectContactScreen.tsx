@@ -11,7 +11,7 @@ import {
     FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ScreenHeader from '../components/ScreenHeader';
+import ScreenHeader from '../components/common/ScreenHeader';
 import * as Contacts from 'expo-contacts';
 import { permissionManager } from '../services/PermissionManager';
 
@@ -82,14 +82,14 @@ const SelectContactScreen: React.FC<Props> = ({ navigation, onNewGroup }) => {
         }
     };
 
-    const filteredContacts = contacts.filter(c => 
+    const filteredContacts = contacts.filter(c =>
         c.name.toLowerCase().includes(searchText.toLowerCase())
     );
 
     const renderActionItem = (item: typeof ACTION_ITEMS[0]) => (
-        <TouchableOpacity 
-            key={item.id} 
-            style={styles.actionRow} 
+        <TouchableOpacity
+            key={item.id}
+            style={styles.actionRow}
             activeOpacity={0.7}
             onPress={() => {
                 if (item.id === 'group') onNewGroup?.();
@@ -117,11 +117,11 @@ const SelectContactScreen: React.FC<Props> = ({ navigation, onNewGroup }) => {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
-            
+
             {/* Header */}
-            <ScreenHeader 
-                title="Select Contact (1,006)" 
-                onBack={() => navigation?.goBack()} 
+            <ScreenHeader
+                title="Select Contact (1,006)"
+                onBack={() => navigation?.goBack()}
                 rightComponent={
                     <TouchableOpacity style={styles.moreBtn} activeOpacity={0.7}>
                         <View style={styles.moreIconBox}>

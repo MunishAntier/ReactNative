@@ -17,10 +17,10 @@ import {
     getAllCountries,
     FlagType,
 } from 'react-native-country-picker-modal';
-import ScreenHeader from '../components/ScreenHeader';
-import FooterSection from '../components/FooterSection';
+import ScreenHeader from '../components/common/ScreenHeader';
+import FooterSection from '../components/common/FooterSection';
 
-import CountryPickerModal from '../components/CountryPickerModal';
+import CountryPickerModal from '../components/common/CountryPickerModal';
 
 const C = {
     bg: '#EBEBEC',
