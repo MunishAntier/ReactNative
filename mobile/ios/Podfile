@@ -2,6 +2,15 @@ ENV['LIBSIGNAL_FFI_PREBUILD_CHECKSUM'] ||= 'e12f6f64eb0ed503c363f3b3830c4c62976c
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
+def node_require(script)
+  # Resolve script with node to allow for hoisting
+  require Pod::Executable.execute_command('node', ['-p',
+    "require.resolve(
+      '#{script}',
+      {paths: [process.argv[1]]},
+    )", __dir__]).strip
+end
+
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
@@ -40,6 +49,14 @@ target 'SecureMsg' do
       'ios'
     ]
   end
+
+  node_require('react-native-permissions/scripts/setup.rb')
+
+  setup_permissions([
+    'Camera',
+    'Contacts',
+    'Notifications',
+  ])
 
   config = use_native_modules!(config_command)
 

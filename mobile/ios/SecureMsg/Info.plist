@@ -67,5 +67,13 @@
 	<string>Light</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>SecureMsg needs access to your camera to take photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SecureMsg needs access to your photo library to select photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>SecureMsg needs access to your photo library to save photos.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>SecureMsg needs access to your contacts to find friends.</string>
 </dict>
 </plist>

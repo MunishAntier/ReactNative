@@ -15,6 +15,7 @@ import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
 import * as SignalManager from '../crypto/SignalManager';
 import { clearSignalStorage } from '../crypto/SignalKeyStore';
 import { getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';
+import BackArrow from '../components/BackArrow';
 
 interface LoginScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
@@ -188,7 +189,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                                 setOtp('');
                                 setDevOtp(null);
                             }}>
-                            <Text style={styles.backButtonText}>← Change Email</Text>
+                            <View style={styles.backButtonContent}>
+                                <BackArrow size={16} color="#6c63ff" />
+                                <Text style={styles.backButtonText}>Change Email</Text>
+                            </View>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -226,12 +230,14 @@ const styles = StyleSheet.create({
         fontSize: 36,
     },
     title: {
+        fontFamily: 'ClashDisplay-Bold',
         fontSize: 28,
         fontWeight: '700',
         color: '#ffffff',
         marginBottom: 8,
     },
     subtitle: {
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 14,
         color: '#888',
     },
@@ -239,17 +245,20 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     label: {
+        fontFamily: 'ClashDisplay-Medium',
         fontSize: 14,
         fontWeight: '600',
         color: '#ccc',
         marginBottom: 4,
     },
     hint: {
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 13,
         color: '#888',
         marginBottom: 4,
     },
     input: {
+        fontFamily: 'ClashDisplay-Regular',
         backgroundColor: '#1a1a2e',
         borderRadius: 12,
         padding: 16,
@@ -269,6 +278,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     buttonText: {
+        fontFamily: 'ClashDisplay-Bold',
         color: '#ffffff',
         fontSize: 16,
         fontWeight: '600',
@@ -276,6 +286,11 @@ const styles = StyleSheet.create({
     backButton: {
         alignItems: 'center',
         paddingVertical: 12,
+    },
+    backButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     backButtonText: {
         color: '#6c63ff',
