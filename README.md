@@ -1,8 +1,9 @@
-# Secure E2EE Messaging App
+# Secure E2EE Messaging App (Frontend-only)
 
-Native mobile application for 1:1 encrypted messaging using the Signal protocol.
+Native mobile application UI for 1:1 encrypted messaging using the Signal protocol.
 
-- Native mobile module skeletons (`mobile/ios`, `mobile/android`)
+- This repo runs **without any backend/server**. All auth/chat data used in the UI is local/mock.
+- Native mobile module skeletons live in `mobile/ios` and `mobile/android`.
 
 ## Features
 - End-to-end encryption is performed on clients.

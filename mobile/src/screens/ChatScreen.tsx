@@ -16,9 +16,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { websocket } from '../services/websocket';
-import { sendEncryptedMessage, decryptIncomingMessage, isMessageAlreadyDecrypted } from '../services/signal';
-import { syncMessages } from '../services/messages';
+import { touchConversationLastMessageAt } from '../services/localChatStore';
+
 
 interface ChatMessage {
     id: string;
@@ -255,168 +254,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             if (cached.length > 0) {
                 setMessages(cached);
             }
-
-            try {
-                const lastSync = await AsyncStorage.getItem(syncTimestampKey(myUserId));
-                const since = lastSync || '2000-01-01T00:00:00Z';
-
-                const synced = await syncMessages(since, 200);
-                const relevant = synced.filter(
-                    m =>
-                        (m.sender_id === peerUserId && m.receiver_id === myUserId) ||
-                        (m.sender_id === myUserId && m.receiver_id === peerUserId),
-                );
-
-                if (relevant.length > 0) {
-                    const existingIds = new Set(cached.map(m => m.id));
-                    const newMessages: ChatMessage[] = [];
-
-                    for (const msg of relevant) {
-                        if (existingIds.has(msg.client_message_id)) continue;
-                        if (isMessageAlreadyDecrypted(msg.client_message_id)) {
-                            continue;
-                        }
-
-                        try {
-                            if (msg.sender_id === myUserId) {
-                                newMessages.push({
-                                    id: msg.client_message_id,
-                                    text: '[sent message]',
-                                    isMine: true,
-                                    timestamp: msg.created_at,
-                                    status: msg.read_at ? 'read' : msg.delivered_at ? 'delivered' : 'sent',
-                                    serverMessageId: msg.id,
-                                });
-                            } else {
-                                const plaintext = await decryptIncomingMessage(
-                                    msg.ciphertext_b64,
-                                    msg.header,
-                                    msg.sender_id,
-                                    msg.sender_device_id || 1,
-                                    myUserId,
-                                    msg.client_message_id,
-                                );
-                                if (msg.sender_device_id) {
-                                    lastPeerDeviceIdRef.current = msg.sender_device_id;
-                                }
-                                newMessages.push({
-                                    id: msg.client_message_id,
-                                    text: plaintext,
-                                    isMine: false,
-                                    timestamp: msg.created_at,
-                                    status: 'delivered',
-                                    serverMessageId: msg.id,
-                                });
-                            }
-                        } catch (err: any) {
-                            if (err.message?.startsWith('IDENTITY_CHANGED')) {
-                                setSecurityWarning(true);
-                            }
-                            newMessages.push({
-                                id: msg.client_message_id || `msg-${msg.id}`,
-                                text: 'Unable to decrypt',
-                                isMine: msg.sender_id === myUserId,
-                                timestamp: msg.created_at,
-                                status: 'failed',
-                                serverMessageId: msg.id,
-                            });
-                        }
-                    }
-
-                    if (newMessages.length > 0) {
-                        const merged = [...cached, ...newMessages];
-                        setMessages(merged);
-                        await saveCachedMessages(myUserId, peerUserId, merged);
-                    }
-                }
-
-                await AsyncStorage.setItem(syncTimestampKey(myUserId), new Date().toISOString());
-            } catch {
-            }
         };
 
         loadMessages();
     }, [peerUserId, myUserId]);
 
     useEffect(() => {
-        const unsubNew = websocket.on('message.new', async (data: any) => {
-            if (data.sender_user_id !== peerUserId) return;
-            if (!convIdRef.current && data.conversation_id) {
-                convIdRef.current = data.conversation_id;
-            }
-
-            try {
-                const plaintext = await decryptIncomingMessage(
-                    data.ciphertext_b64,
-                    data.header,
-                    data.sender_user_id,
-                    data.sender_device_id || 1,
-                    myUserId,
-                    data.client_message_id,
-                );
-
-                if (data.sender_device_id) {
-                    lastPeerDeviceIdRef.current = data.sender_device_id;
-                }
-
-                const newMsg: ChatMessage = {
-                    id: data.client_message_id,
-                    text: plaintext,
-                    isMine: false,
-                    timestamp: data.created_at || new Date().toISOString(),
-                    status: 'delivered',
-                    serverMessageId: data.server_message_id,
-                };
-
-                setMessages(prev => {
-                    const updated = [...prev, newMsg];
-                    saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
-                    return updated;
-                });
-
-                websocket.ackDelivered(data.server_message_id);
-            } catch (err: any) {
-                if (err.message?.startsWith('IDENTITY_CHANGED')) {
-                    setSecurityWarning(true);
-                }
-                setMessages(prev => [
-                    ...prev,
-                    {
-                        id: data.client_message_id || `msg-${Date.now()}`,
-                        text: 'Unable to decrypt',
-                        isMine: false,
-                        timestamp: new Date().toISOString(),
-                        status: 'failed',
-                    },
-                ]);
-            }
-        });
-
-        const unsubStatus = websocket.on('message.status', (data: any) => {
-            setMessages(prev =>
-                prev.map(m =>
-                    m.serverMessageId === data.server_message_id
-                        ? { ...m, status: data.status }
-                        : m,
-                ),
-            );
-        });
-
-        const unsubIdentity = websocket.on('session.identity_changed', (data: any) => {
-            if (data.changed_user_id === peerUserId) {
-                setSecurityWarning(true);
-                Alert.alert(
-                    'Security Number Changed',
-                    'The security number for this contact has changed. Please verify identity before continuing.',
-                );
-            }
-        });
-
-        return () => {
-            unsubNew();
-            unsubStatus();
-            unsubIdentity();
-        };
+        // Websocket and real-time syncing logic removed for frontend-only mode.
     }, [peerUserId, myUserId]);
 
     const handleSend = useCallback(async () => {
@@ -429,33 +273,23 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             text,
             isMine: true,
             timestamp: new Date().toISOString(),
-            status: 'sending',
+            status: 'sent',
         };
 
-        setMessages(prev => [...prev, newMsg]);
+        setMessages(prev => {
+            const updated = [...prev, newMsg];
+            saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
+            return updated;
+        });
+        touchConversationLastMessageAt(
+            myUserId,
+            peerUserId,
+            convIdRef.current,
+            newMsg.timestamp,
+            displayName,
+        ).catch(() => { });
         setInputText('');
-
-        try {
-            const clientMessageId = await sendEncryptedMessage(
-                peerUserId,
-                text,
-                convIdRef.current,
-                myUserId,
-                myDeviceId,
-            );
-
-            setMessages(prev => {
-                const updated = prev.map(m =>
-                    m.id === tempId ? { ...m, id: clientMessageId, text, status: 'sent' as const } : m,
-                );
-                saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
-                return updated;
-            });
-        } catch (err: any) {
-            setMessages(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
-            Alert.alert('Send Failed', err.message);
-        }
-    }, [inputText, peerUserId, myUserId, myDeviceId]);
+    }, [displayName, inputText, peerUserId, myUserId, myDeviceId]);
 
     const statusIcon = (status: ChatMessage['status']) => {
         switch (status) {

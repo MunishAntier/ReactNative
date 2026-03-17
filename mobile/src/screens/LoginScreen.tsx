@@ -13,16 +13,8 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-    startAuth,
-    verifyOTP,
-    loadUserInfo,
-    getOrCreateStableDeviceUuid,
-} from '../services/auth';
-import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
-import * as SignalManager from '../crypto/SignalManager';
-import { clearSignalStorage, getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';
+// import {
+
 
 interface LoginScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
@@ -67,18 +59,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         }
 
         setLoading(true);
-        try {
-            const res = await startAuth(trimmedEmail);
-            if (res.dev_otp) {
-                setDevOtp(res.dev_otp);
-                setOtp(res.dev_otp);
-            }
+        setTimeout(() => {
+            setDevOtp('123456');
+            setOtp('123456');
             setStep('otp');
-        } catch (err: any) {
-            Alert.alert('Error', err.message);
-        } finally {
             setLoading(false);
-        }
+        }, 1000);
     };
 
     const handleVerifyOtp = async () => {
@@ -88,47 +74,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         }
 
         setLoading(true);
-        try {
-            const previousUserInfo = await loadUserInfo();
-            const deviceUuid = await getOrCreateStableDeviceUuid(Platform.OS);
-            console.log('[DEBUG] Verify OTP:', { email: email.trim(), otp: otp.trim(), deviceUuid, platform: Platform.OS });
-            const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
-
-            const sameUserNewDevice =
-                previousUserInfo?.userId === res.user_id &&
-                previousUserInfo.deviceId !== res.device_id;
-
-            if (sameUserNewDevice) {
-                try {
-                    await SignalManager.clearAll();
-                } catch { }
-                try {
-                    await clearSignalStorage(res.user_id);
-                } catch { }
-            }
-
-            try {
-                const isNewIdentity = await SignalManager.initialize(res.user_id);
-                if (isNewIdentity || sameUserNewDevice) {
-                    await generateAndUploadKeys(res.user_id, 100);
-                    onShowSecret(res.user_id, res.device_id);
-                } else {
-                    try {
-                        const currentSpkId = await getCurrentSignedPreKeyId(res.user_id);
-                        if (currentSpkId === 0) {
-                            await rotateSignedPreKey(res.user_id);
-                            onShowSecret(res.user_id, res.device_id);
-                            return; // Stop here, onShowSecret will handle navigation
-                        }
-                    } catch { }
-                    onLoginSuccess(res.user_id, res.device_id);
-                }
-            } catch { }
-        } catch (err: any) {
-            Alert.alert('Error', err.message);
-        } finally {
+        setTimeout(() => {
             setLoading(false);
-        }
+            if (otp === '123456') {
+                onLoginSuccess(1, 1);
+            } else {
+                Alert.alert('Error', 'Invalid OTP');
+            }
+        }, 1000);
     };
 
     const topOffset = STATUS_BAR_OFFSET * hScale;

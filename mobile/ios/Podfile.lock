@@ -1976,6 +1976,8 @@ PODS:
     - CryptoSwift (~> 1.8.4)
     - ExpoModulesCore
     - LibSignalClient
+  - RNDeviceInfo (15.0.2):
+    - React-Core
   - RNKeychain (10.0.0):
     - hermes-engine
     - RCTRequired
@@ -2094,9 +2096,9 @@ PODS:
 
 DEPENDENCIES:
   - "AsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
-  - EXConstants (from `../node_modules/expo/node_modules/expo-constants/ios`)
+  - EXConstants (from `../node_modules/expo-constants/ios`)
   - Expo (from `../node_modules/expo`)
-  - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
+  - ExpoAsset (from `../node_modules/expo-asset/ios`)
   - "ExpoDomWebView (from `../node_modules/expo/node_modules/@expo/log-box/node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
@@ -2183,6 +2185,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - ReactNativeLibsignalClient (from `../node_modules/react-native-libsignal-client/ios`)
+  - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - RNKeychain (from `../node_modules/react-native-keychain`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -2196,11 +2199,11 @@ EXTERNAL SOURCES:
   AsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
   EXConstants:
-    :path: "../node_modules/expo/node_modules/expo-constants/ios"
+    :path: "../node_modules/expo-constants/ios"
   Expo:
     :path: "../node_modules/expo"
   ExpoAsset:
-    :path: "../node_modules/expo/node_modules/expo-asset/ios"
+    :path: "../node_modules/expo-asset/ios"
   ExpoDomWebView:
     :path: "../node_modules/expo/node_modules/@expo/log-box/node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
@@ -2373,6 +2376,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   ReactNativeLibsignalClient:
     :path: "../node_modules/react-native-libsignal-client/ios"
+  RNDeviceInfo:
+    :path: "../node_modules/react-native-device-info"
   RNKeychain:
     :path: "../node_modules/react-native-keychain"
   RNScreens:
@@ -2478,11 +2483,12 @@ SPEC CHECKSUMS:
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
   ReactNativeDependencies: 777f6ee455e55870d6444c7414f02179a48c3059
   ReactNativeLibsignalClient: 5ad32b79def4489ea3bdfa15645cc1e566a95837
+  RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNKeychain: ce2cee63eab83888c3da68684da50b9c83c33461
   RNScreens: ca829379d20b0d1ff41a0b87bc37bdc50276cef5
   RNSVG: 4a9f0b92f0a95bf3af7f787fd36a9c762d4d3d42
   Yoga: 846fbe6f595136be802ad81d05688ff748839764
 
-PODFILE CHECKSUM: 3fad96d72fe7b0fbb5b1f42b850fab203c7e8410
+PODFILE CHECKSUM: 33d5524771937402d4971f35bf2f15b5742a7589
 
 COCOAPODS: 1.16.2

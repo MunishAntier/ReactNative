@@ -9,9 +9,15 @@ import {
     RefreshControl,
     Alert,
 } from 'react-native';
-import { listConversations, ConversationItem } from '../services/messages';
-import { lookupUser } from '../services/auth';
-import { websocket } from '../services/websocket';
+import { loadConversations as loadStoredConversations, upsertConversation } from '../services/localChatStore';
+export interface ConversationItem {
+    conversation_id: number;
+    peer_user_id: number;
+    peer_display_name?: string;
+    peer_avatar?: string | null;
+    last_message_at?: string;
+    unread_count: number;
+}
 
 export interface ConversationPeerMeta {
     peerDisplayName: string;
@@ -26,7 +32,7 @@ interface ConversationsScreenProps {
 }
 
 const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
-    userId: _userId,
+    userId,
     onSelectConversation,
     onStartNewChat,
     onLogout,
@@ -46,29 +52,26 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
     }, []);
 
     const loadConversations = useCallback(async () => {
-        try {
-            const convs = await listConversations();
-            setConversations(convs);
-        } catch {
-        }
-    }, []);
+        const stored = await loadStoredConversations(userId);
+        setConversations(
+            stored.map(c => ({
+                conversation_id: c.conversationId,
+                peer_user_id: c.peerUserId,
+                peer_display_name: c.peerDisplayName,
+                peer_avatar: c.peerAvatar ?? null,
+                last_message_at: c.lastMessageAt,
+                unread_count: c.unreadCount,
+            })),
+        );
+    }, [userId]);
 
     useEffect(() => {
         loadConversations();
     }, [loadConversations]);
 
-    // Real-time: refresh conversation list when new messages arrive
+    // Real-time: removed websocket
     useEffect(() => {
-        const unsubNew = websocket.on('message.new', () => {
-            loadConversations();
-        });
-        const unsubStatus = websocket.on('message.status', () => {
-            loadConversations();
-        });
-        return () => {
-            unsubNew();
-            unsubStatus();
-        };
+        // no-op
     }, [loadConversations]);
 
     const onRefresh = async () => {
@@ -83,17 +86,21 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
             Alert.alert('Error', 'Please enter an email address');
             return;
         }
-        try {
-            const user = await lookupUser(email);
-            setShowNewChat(false);
-            setNewChatEmail('');
-            onStartNewChat(user.id, {
-                peerDisplayName: getPeerDisplayName(user.id, user.email || user.phone),
-                peerAvatar: null,
-            });
-        } catch {
-            Alert.alert('Error', 'User not found');
-        }
+        setShowNewChat(false);
+        setNewChatEmail('');
+        const peerUserId = Math.floor(Math.random() * 1000) + 1;
+        const conversationId = Date.now();
+        const peerDisplayName = getPeerDisplayName(peerUserId, email);
+        await upsertConversation(userId, {
+            conversationId,
+            peerUserId,
+            peerDisplayName,
+            peerAvatar: null,
+            lastMessageAt: new Date().toISOString(),
+            unreadCount: 0,
+        });
+        await loadConversations();
+        onSelectConversation(conversationId, peerUserId, { peerDisplayName, peerAvatar: null });
     };
 
     const formatTime = (dateStr: string) => {
@@ -113,8 +120,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
     };
 
     const renderConversation = ({ item }: { item: ConversationItem }) => {
-        const rawName = item.peer_email || item.peer_phone;
-        const peerDisplayName = getPeerDisplayName(item.peer_user_id, rawName);
+        const peerDisplayName = item.peer_display_name || getPeerDisplayName(item.peer_user_id);
 
         return (
             <TouchableOpacity
@@ -122,13 +128,13 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
                 onPress={() =>
                     onSelectConversation(item.conversation_id, item.peer_user_id, {
                         peerDisplayName,
-                        peerAvatar: null,
+                        peerAvatar: item.peer_avatar ?? null,
                     })
                 }
                 activeOpacity={0.7}>
                 <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
-                        {(rawName || '?').charAt(0).toUpperCase()}
+                        {(peerDisplayName || '?').charAt(0).toUpperCase()}
                     </Text>
                 </View>
                 <View style={styles.conversationInfo}>

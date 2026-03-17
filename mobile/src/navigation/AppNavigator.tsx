@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StatusBar } from 'react-native';
-import { loadTokens } from '../services/api';
-import { logout, loadUserInfo } from '../services/auth';
-import { websocket } from '../services/websocket';
-import * as SignalManager from '../crypto/SignalManager';
+
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
@@ -35,45 +32,23 @@ const AppNavigator: React.FC = () => {
 
     // Check for existing tokens on mount
     useEffect(() => {
-        const checkAuth = async () => {
-            const tokens = await loadTokens();
-            if (tokens?.accessToken) {
-                // Load persisted user info
-                const userInfo = await loadUserInfo();
-                const userId = userInfo?.userId ?? 0;
-                const deviceId = userInfo?.deviceId ?? 0;
-
-                // Initialize Signal stores
-                try {
-                    await SignalManager.initialize(userId);
-                } catch {
-                }
-
-                setScreen({ name: 'conversations', userId, deviceId });
-                websocket.connect(userId);
-            }
-        };
-        checkAuth();
+        // Backend removed: Just default to login screen, or add mock auth later if needed
     }, []);
 
     const handleLoginSuccess = useCallback(async (userId: number, deviceId: number) => {
         setScreen({ name: 'conversations', userId, deviceId });
-        websocket.connect(userId);
+        // websocket.connect(userId); // removed
     }, []);
 
     const handleShowSecret = useCallback((userId: number, deviceId: number) => {
         setScreen({ name: 'secret', userId, deviceId });
-        // After some delay or after keys are uploaded, move to conversations
+        // After some delay move to conversations
         setTimeout(() => {
             setScreen({ name: 'conversations', userId, deviceId });
-            websocket.connect(userId);
         }, 3000);
     }, []);
 
     const handleLogout = useCallback(async () => {
-        websocket.disconnect();
-        await logout();
-        await SignalManager.clearAll();
         setScreen({ name: 'login' });
     }, []);
 
@@ -117,11 +92,12 @@ const AppNavigator: React.FC = () => {
     const handleStartNewChat = useCallback(
         (peerUserId: number, peerMeta?: ConversationPeerMeta) => {
             if (screen.name !== 'conversations') return;
+            const conversationId = Date.now();
             setScreen({
                 name: 'chat',
                 userId: screen.userId,
                 deviceId: screen.deviceId,
-                conversationId: null,
+                conversationId,
                 peerUserId,
                 peerDisplayName: peerMeta?.peerDisplayName,
                 peerAvatar: peerMeta?.peerAvatar ?? null,
