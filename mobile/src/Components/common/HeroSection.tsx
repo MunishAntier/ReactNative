@@ -8,7 +8,7 @@ import {
     ImageSourcePropType,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BackArrow from './BackArrow';
+import { Ionicons } from '@expo/vector-icons';
 
 interface HeroSectionProps {
     title: string;
@@ -45,7 +45,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     onPress={onBack}
                     activeOpacity={0.7}
                 >
-                    <BackArrow size={24} color="#FFFFFF" />
+                    <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
                 </TouchableOpacity>
             )}
 
@@ -89,17 +89,18 @@ const styles = StyleSheet.create({
     heroTitle: {
         fontFamily: 'ClashDisplay-Medium',
         fontSize: 28,
-        color: '#FFFFFF',
-        lineHeight: 34,
-        letterSpacing: -0.5,
+        color: '#FCFDFD',
+        lineHeight: 28,
+        letterSpacing: 0,
         marginBottom: 8,
     },
     heroSubtitle: {
-        fontFamily: 'ClashDisplay-Regular',
-        fontSize: 14,
+        fontFamily: 'Gilroy-Regular',
+        fontSize: 16,
         fontWeight: '400',
-        color: 'rgba(255,255,255,0.75)',
-        lineHeight: 20,
+        color: '#929292',
+        lineHeight: 24,
+        letterSpacing: 0,
     },
 });
 

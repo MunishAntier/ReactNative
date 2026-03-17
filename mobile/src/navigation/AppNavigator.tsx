@@ -250,16 +250,11 @@ const AppNavigator: React.FC = () => {
             case 'permissions':
                 return <PermissionScreen onFinished={() => setScreen({ name: 'phone' })} />;
             case 'login':
-                // Renders the Login screen with essential navigation callbacks
                 return (
                     <LoginScreen
-                        // handleLoginSuccess handles standard routing to home screen
-                        onLoginSuccess={() => setScreen({ name: 'home' })}
-                        // onShowSecret handles new-identity key recovery phase (Signal protection)
+                        onLoginSuccess={handleLoginSuccess}
                         onShowSecret={handleShowSecret}
-                        // Provides a link to the profile screen (usually for app testing or previews)
                         onGoToProfile={handleGoToProfile}
-                        // Move to permissions check
                         onContinue={() => setScreen({ name: 'permissions' })}
                     />
                 );
@@ -291,7 +286,7 @@ const AppNavigator: React.FC = () => {
                         onBack={goBack}
                         onContinue={(pin) => {
                             if (pin === screen.createdPin) {
-                                navigateTo({ name: 'home' });
+                                handleShowSecret(0, 0); // Trigger secret screen then home
                             } else {
                                 console.log('PINs do not match');
                             }
@@ -311,10 +306,10 @@ const AppNavigator: React.FC = () => {
                     />
                 );
             case 'profile':
-                return <ProfileScreen 
-                    onGoBack={() => setScreen({ name: 'login' })} 
-                    onSave={() => setScreen({ name: 'create_pin' })} 
-                    onEditAvatar={handleGoToCharacter} 
+                return <ProfileScreen
+                    onGoBack={() => setScreen({ name: 'login' })}
+                    onSave={() => setScreen({ name: 'create_pin' })}
+                    onEditAvatar={handleGoToCharacter}
                 />;
             case 'character':
                 return <CharacterScreen onClose={handleCloseCharacter} />;
@@ -339,26 +334,6 @@ const AppNavigator: React.FC = () => {
                         peerDisplayName={screen.peerDisplayName}
                         peerAvatar={screen.peerAvatar}
                         onGoBack={handleGoBack}
-                    />
-                );
-            case 'create_pin':
-                return (
-                    <CreatePINScreen
-                        onBack={goBack}
-                        onContinue={(pin) => navigateTo({ name: 'confirm_pin', createdPin: pin })}
-                    />
-                );
-            case 'confirm_pin':
-                return (
-                    <ConfirmPINScreen
-                        onBack={goBack}
-                        onContinue={(pin) => {
-                            if (pin === screen.createdPin) {
-                                handleShowSecret(0, 0); // Trigger secret screen then home
-                            } else {
-                                console.log('PINs do not match');
-                            }
-                        }}
                     />
                 );
             case 'select_contact':
@@ -417,6 +392,7 @@ const AppNavigator: React.FC = () => {
         }
     };
 
+
     return (
         <>
             <StatusBar
@@ -429,3 +405,5 @@ const AppNavigator: React.FC = () => {
 };
 
 export default AppNavigator;
+
+

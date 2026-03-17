@@ -13,7 +13,7 @@ import {
     Dimensions,
     StatusBar,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     startAuth,
@@ -325,6 +325,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                         </View>
                     </View>
                 )}
+
             </View>
         </KeyboardAvoidingView>
     );
@@ -332,10 +333,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: '#070707',
-    },
-    safeArea: {
         flex: 1,
         backgroundColor: '#070707',
     },
