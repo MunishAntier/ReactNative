@@ -40,8 +40,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#E4E9EC',
         paddingHorizontal: 24,
         paddingTop: 16,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#D4D4D4',
+        borderTopWidth: 0.5,
+        borderTopColor: '#929292',
     },
     primaryBtn: {
         backgroundColor: '#111111',

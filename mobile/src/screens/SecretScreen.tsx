@@ -7,6 +7,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle, Line, Rect } from 'react-native-svg';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -49,19 +50,21 @@ const SecretScreen: React.FC = () => {
                         resizeMode="contain"
                     />
 
-                    {/* Inner blue circle */}
-                    <Image
-                        source={require('../assets/images/secret_blue_circle.png')}
-                        style={[styles.fullCircle, styles.blueCircle]}
-                        resizeMode="contain"
-                    />
+                    {/* Blue border ring */}
+                    <View style={styles.blueBorderRing} />
+
+                    {/* White inner circle */}
+                    <View style={styles.whiteCircle} />
 
                     {/* Key icon */}
-                    <Image
-                        source={require('../assets/images/secret_key.png')}
-                        style={styles.keyIcon}
-                        resizeMode="contain"
-                    />
+                    <View style={styles.keyIcon}>
+                        <Svg width="100%" height="100%" viewBox="-2 -2 40 28">
+                            <Circle cx="10" cy="10" r="7" stroke="#1E2A78" strokeWidth="2.5" fill="none" transform="rotate(-45, 18, 12)" />
+                            <Line x1="16" y1="10" x2="33" y2="10" stroke="#1E2A78" strokeWidth="2.5" strokeLinecap="round" transform="rotate(-45, 18, 12)" />
+                            <Rect x="29" y="10" width="2.5" height="6" rx="0.5" fill="#1E2A78" transform="rotate(-45, 18, 12)" />
+                            <Rect x="24" y="10" width="2.5" height="5" rx="0.5" fill="#1E2A78" transform="rotate(-45, 18, 12)" />
+                        </Svg>
+                    </View>
                 </View>
 
                 {/* Heading + body */}
@@ -125,11 +128,11 @@ const SecretScreen: React.FC = () => {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#070707',
+        backgroundColor: '#E9EDF0',
     },
     container: {
         flex: 1,
-        backgroundColor: '#070707',
+        backgroundColor: '#E9EDF0',
         paddingHorizontal: 32,
     },
     spacerTop: {
@@ -149,13 +152,25 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    blueCircle: {
-        width: '70%',
-        height: '70%',
+    blueBorderRing: {
+        position: 'absolute',
+        width: '65%',
+        height: '65%',
+        borderRadius: 9999,
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        borderColor: '#1B1464',
+    },
+    whiteCircle: {
+        position: 'absolute',
+        width: '52%',
+        height: '52%',
+        borderRadius: 9999,
+        backgroundColor: '#FFFFFF',
     },
     keyIcon: {
-        width: '36%',
-        height: '36%',
+        width: '20%',
+        height: '20%',
     },
     textBlock: {
         paddingHorizontal: 8,
@@ -163,9 +178,8 @@ const styles = StyleSheet.create({
     },
     title: {
         textAlign: 'center',
-        color: '#FFFFFF',
+        color: '#070707',
         fontFamily: FONT_FAMILIES.clashMedium,
-        fontWeight: '500',
         marginBottom: 16,
     },
     subtitle: {
@@ -173,22 +187,14 @@ const styles = StyleSheet.create({
         color: '#606060',
         fontFamily: FONT_FAMILIES.clashRegular,
         fontWeight: '400',
+        fontSize: 16,
+        lineHeight: 24,
     },
     statusWrapper: {
         paddingBottom: 40,
     },
     statusPillOuter: {
         alignSelf: 'center',
-        borderRadius: 999,
-        borderWidth: 2.67,
-        borderColor: '#1E2A78',
-        padding: 3,
-        backgroundColor: '#3FD3C614',
-        shadowColor: '#1E2A78',
-        shadowOffset: { width: 0, height: 16 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        elevation: 8,
     },
     statusPillInner: {
         flexDirection: 'row',
@@ -196,7 +202,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 999,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#E9EDF0',
         borderWidth: 1,
         borderColor: '#34C759',
     },

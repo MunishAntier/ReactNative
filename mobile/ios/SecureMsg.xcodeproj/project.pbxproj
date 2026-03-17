@@ -11,43 +11,41 @@
 		0F97BD0A81EC7B4B24536796 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 92ADDB67D0E890E96D2946CA /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		527D5713DBD244AC90D95C72 /* ClashDisplay-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = 6DB119F8C26942AD8A207EC4 /* ClashDisplay-Light.otf */; };
+		60F0416C6DF24BEBAEAA84EA /* ClashDisplay-Extralight.otf in Resources */ = {isa = PBXBuildFile; fileRef = 00D27EF83C6943C1BEED384E /* ClashDisplay-Extralight.otf */; };
 		725F8373C8BB8D1414212440 /* Pods_SecureMsg.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B942C3A37BE55F88F05F89BA /* Pods_SecureMsg.framework */; };
-		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C373778B10A0EEABC74751AA /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52A4A90E9DA0289DC0B04175 /* ExpoModulesProvider.swift */; };
-		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		811C013029E64700B3AD4C17 /* ClashDisplay-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = 6A68C0D1FB7F46319372AD5A /* ClashDisplay-Medium.otf */; };
 		8A4BC7B2785B4C778FCA208E /* ClashDisplay-Semibold.otf in Resources */ = {isa = PBXBuildFile; fileRef = AC1C372980AD4902AE5CC8EF /* ClashDisplay-Semibold.otf */; };
-		527D5713DBD244AC90D95C72 /* ClashDisplay-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = 6DB119F8C26942AD8A207EC4 /* ClashDisplay-Light.otf */; };
 		8A5F3F9575164BC1A9D9BA44 /* ClashDisplay-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = C6A1CB3954194A6EB83CFAB6 /* ClashDisplay-Bold.otf */; };
-		FAFFAE6F94E149DFA9D3A3CC /* ClashDisplay-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = DA75AFE841294D8CAA2060A1 /* ClashDisplay-Regular.otf */; };
-		60F0416C6DF24BEBAEAA84EA /* ClashDisplay-Extralight.otf in Resources */ = {isa = PBXBuildFile; fileRef = 00D27EF83C6943C1BEED384E /* ClashDisplay-Extralight.otf */; };
+		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C373778B10A0EEABC74751AA /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52A4A90E9DA0289DC0B04175 /* ExpoModulesProvider.swift */; };
 		CFCD3343E1AC49A5813FDF2F /* .gitkeep in Resources */ = {isa = PBXBuildFile; fileRef = D8A29C48328E4B1C9667BC86 /* .gitkeep */; };
-		2B5EF8E6399A4BDB8D117390 /* gilroy-gh.zip in Resources */ = {isa = PBXBuildFile; fileRef = 246C3FAEFE1348A983E2F861 /* gilroy-gh.zip */; };
+		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		FAFFAE6F94E149DFA9D3A3CC /* ClashDisplay-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = DA75AFE841294D8CAA2060A1 /* ClashDisplay-Regular.otf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00D27EF83C6943C1BEED384E /* ClashDisplay-Extralight.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Extralight.otf"; path = "../src/assets/fonts/ClashDisplay-Extralight.otf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* SecureMsg.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SecureMsg.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SecureMsg/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SecureMsg/Info.plist; sourceTree = "<group>"; };
 		1A69EFDD568550072EC729D1 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-SecureMsg/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		511A57C121999B1AE2C60E75 /* Pods-SecureMsg.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecureMsg.debug.xcconfig"; path = "Target Support Files/Pods-SecureMsg/Pods-SecureMsg.debug.xcconfig"; sourceTree = "<group>"; };
 		52A4A90E9DA0289DC0B04175 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-SecureMsg/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		6A68C0D1FB7F46319372AD5A /* ClashDisplay-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Medium.otf"; path = "../src/assets/fonts/ClashDisplay-Medium.otf"; sourceTree = "<group>"; };
+		6DB119F8C26942AD8A207EC4 /* ClashDisplay-Light.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Light.otf"; path = "../src/assets/fonts/ClashDisplay-Light.otf"; sourceTree = "<group>"; };
 		92ADDB67D0E890E96D2946CA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = SecureMsg/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = SecureMsg/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AC1C372980AD4902AE5CC8EF /* ClashDisplay-Semibold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Semibold.otf"; path = "../src/assets/fonts/ClashDisplay-Semibold.otf"; sourceTree = "<group>"; };
 		B942C3A37BE55F88F05F89BA /* Pods_SecureMsg.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SecureMsg.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		BC03BF8261CA5D02E85EF8A4 /* Pods-SecureMsg.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SecureMsg.release.xcconfig"; path = "Target Support Files/Pods-SecureMsg/Pods-SecureMsg.release.xcconfig"; sourceTree = "<group>"; };
+		C6A1CB3954194A6EB83CFAB6 /* ClashDisplay-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Bold.otf"; path = "../src/assets/fonts/ClashDisplay-Bold.otf"; sourceTree = "<group>"; };
+		D8A29C48328E4B1C9667BC86 /* .gitkeep */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = .gitkeep; path = ../src/assets/fonts/.gitkeep; sourceTree = "<group>"; };
+		DA75AFE841294D8CAA2060A1 /* ClashDisplay-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Regular.otf"; path = "../src/assets/fonts/ClashDisplay-Regular.otf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = SecureMsg/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* SecureMsg-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "SecureMsg-Bridging-Header.h"; path = "SecureMsg/SecureMsg-Bridging-Header.h"; sourceTree = "<group>"; };
-		6A68C0D1FB7F46319372AD5A /* ClashDisplay-Medium.otf */ = {isa = PBXFileReference; name = "ClashDisplay-Medium.otf"; path = "../src/assets/fonts/ClashDisplay-Medium.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		AC1C372980AD4902AE5CC8EF /* ClashDisplay-Semibold.otf */ = {isa = PBXFileReference; name = "ClashDisplay-Semibold.otf"; path = "../src/assets/fonts/ClashDisplay-Semibold.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		6DB119F8C26942AD8A207EC4 /* ClashDisplay-Light.otf */ = {isa = PBXFileReference; name = "ClashDisplay-Light.otf"; path = "../src/assets/fonts/ClashDisplay-Light.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		C6A1CB3954194A6EB83CFAB6 /* ClashDisplay-Bold.otf */ = {isa = PBXFileReference; name = "ClashDisplay-Bold.otf"; path = "../src/assets/fonts/ClashDisplay-Bold.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		DA75AFE841294D8CAA2060A1 /* ClashDisplay-Regular.otf */ = {isa = PBXFileReference; name = "ClashDisplay-Regular.otf"; path = "../src/assets/fonts/ClashDisplay-Regular.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		00D27EF83C6943C1BEED384E /* ClashDisplay-Extralight.otf */ = {isa = PBXFileReference; name = "ClashDisplay-Extralight.otf"; path = "../src/assets/fonts/ClashDisplay-Extralight.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		D8A29C48328E4B1C9667BC86 /* .gitkeep */ = {isa = PBXFileReference; name = ".gitkeep"; path = "../src/assets/fonts/.gitkeep"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		246C3FAEFE1348A983E2F861 /* gilroy-gh.zip */ = {isa = PBXFileReference; name = "gilroy-gh.zip"; path = "../src/assets/fonts/gilroy-gh.zip"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +90,21 @@
 				52A4A90E9DA0289DC0B04175 /* ExpoModulesProvider.swift */,
 			);
 			name = SecureMsg;
+			sourceTree = "<group>";
+		};
+		3C499BD68172408BB3AD3B33 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				6A68C0D1FB7F46319372AD5A /* ClashDisplay-Medium.otf */,
+				AC1C372980AD4902AE5CC8EF /* ClashDisplay-Semibold.otf */,
+				6DB119F8C26942AD8A207EC4 /* ClashDisplay-Light.otf */,
+				C6A1CB3954194A6EB83CFAB6 /* ClashDisplay-Bold.otf */,
+				DA75AFE841294D8CAA2060A1 /* ClashDisplay-Regular.otf */,
+				00D27EF83C6943C1BEED384E /* ClashDisplay-Extralight.otf */,
+				D8A29C48328E4B1C9667BC86 /* .gitkeep */,
+			);
+			name = Resources;
+			path = "";
 			sourceTree = "<group>";
 		};
 		44FFD213F415B9DBCF7615A6 /* ExpoModulesProviders */ = {
@@ -151,22 +164,6 @@
 			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
-		};
-		3C499BD68172408BB3AD3B33 /* Resources */ = {
-			isa = "PBXGroup";
-			children = (
-				6A68C0D1FB7F46319372AD5A /* ClashDisplay-Medium.otf */,
-				AC1C372980AD4902AE5CC8EF /* ClashDisplay-Semibold.otf */,
-				6DB119F8C26942AD8A207EC4 /* ClashDisplay-Light.otf */,
-				C6A1CB3954194A6EB83CFAB6 /* ClashDisplay-Bold.otf */,
-				DA75AFE841294D8CAA2060A1 /* ClashDisplay-Regular.otf */,
-				00D27EF83C6943C1BEED384E /* ClashDisplay-Extralight.otf */,
-				D8A29C48328E4B1C9667BC86 /* .gitkeep */,
-				246C3FAEFE1348A983E2F861 /* gilroy-gh.zip */,
-			);
-			name = Resources;
-			sourceTree = "<group>";
-			path = "";
 		};
 /* End PBXGroup section */
 
@@ -240,7 +237,6 @@
 				FAFFAE6F94E149DFA9D3A3CC /* ClashDisplay-Regular.otf in Resources */,
 				60F0416C6DF24BEBAEAA84EA /* ClashDisplay-Extralight.otf in Resources */,
 				CFCD3343E1AC49A5813FDF2F /* .gitkeep in Resources */,
-				2B5EF8E6399A4BDB8D117390 /* gilroy-gh.zip in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

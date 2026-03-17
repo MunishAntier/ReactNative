@@ -71,6 +71,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
             const res = await startAuth(trimmedEmail);
             if (res.dev_otp) {
                 setDevOtp(res.dev_otp);
+                setOtp(res.dev_otp);
             }
             setStep('otp');
         } catch (err: any) {
@@ -90,6 +91,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         try {
             const previousUserInfo = await loadUserInfo();
             const deviceUuid = await getOrCreateStableDeviceUuid(Platform.OS);
+            console.log('[DEBUG] Verify OTP:', { email: email.trim(), otp: otp.trim(), deviceUuid, platform: Platform.OS });
             const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
 
             const sameUserNewDevice =

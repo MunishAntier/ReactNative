@@ -13,15 +13,20 @@ import { listConversations, ConversationItem } from '../services/messages';
 import { lookupUser } from '../services/auth';
 import { websocket } from '../services/websocket';
 
+export interface ConversationPeerMeta {
+    peerDisplayName: string;
+    peerAvatar?: string | null;
+}
+
 interface ConversationsScreenProps {
     userId: number;
-    onSelectConversation: (conversationId: number, peerUserId: number) => void;
-    onStartNewChat: (peerUserId: number) => void;
+    onSelectConversation: (conversationId: number, peerUserId: number, peerMeta?: ConversationPeerMeta) => void;
+    onStartNewChat: (peerUserId: number, peerMeta?: ConversationPeerMeta) => void;
     onLogout: () => void;
 }
 
 const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
-    userId,
+    userId: _userId,
     onSelectConversation,
     onStartNewChat,
     onLogout,
@@ -31,11 +36,20 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
     const [showNewChat, setShowNewChat] = useState(false);
     const [newChatEmail, setNewChatEmail] = useState('');
 
+    const getPeerDisplayName = useCallback((peerUserId: number, rawName?: string) => {
+        if (!rawName) return `User #${peerUserId}`;
+        if (rawName.includes('@')) {
+            const localPart = rawName.split('@')[0]?.trim();
+            return localPart ? localPart : rawName;
+        }
+        return rawName;
+    }, []);
+
     const loadConversations = useCallback(async () => {
         try {
             const convs = await listConversations();
             setConversations(convs);
-        } catch (err: any) {
+        } catch {
         }
     }, []);
 
@@ -73,7 +87,10 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
             const user = await lookupUser(email);
             setShowNewChat(false);
             setNewChatEmail('');
-            onStartNewChat(user.id);
+            onStartNewChat(user.id, {
+                peerDisplayName: getPeerDisplayName(user.id, user.email || user.phone),
+                peerAvatar: null,
+            });
         } catch {
             Alert.alert('Error', 'User not found');
         }
@@ -95,36 +112,46 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    const renderConversation = ({ item }: { item: ConversationItem }) => (
-        <TouchableOpacity
-            style={styles.conversationItem}
-            onPress={() => onSelectConversation(item.conversation_id, item.peer_user_id)}
-            activeOpacity={0.7}>
-            <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                    {(item.peer_email || item.peer_phone || '?').charAt(0).toUpperCase()}
-                </Text>
-            </View>
-            <View style={styles.conversationInfo}>
-                <View style={styles.conversationHeader}>
-                    <Text style={styles.peerName} numberOfLines={1}>
-                        {item.peer_email || item.peer_phone || `User #${item.peer_user_id}`}
+    const renderConversation = ({ item }: { item: ConversationItem }) => {
+        const rawName = item.peer_email || item.peer_phone;
+        const peerDisplayName = getPeerDisplayName(item.peer_user_id, rawName);
+
+        return (
+            <TouchableOpacity
+                style={styles.conversationItem}
+                onPress={() =>
+                    onSelectConversation(item.conversation_id, item.peer_user_id, {
+                        peerDisplayName,
+                        peerAvatar: null,
+                    })
+                }
+                activeOpacity={0.7}>
+                <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                        {(rawName || '?').charAt(0).toUpperCase()}
                     </Text>
-                    <Text style={styles.timeText}>{item.last_message_at ? formatTime(item.last_message_at) : ''}</Text>
                 </View>
-                <View style={styles.conversationFooter}>
-                    <Text style={styles.lastMessage} numberOfLines={1}>
-                        Encrypted message
-                    </Text>
-                    {item.unread_count > 0 && (
-                        <View style={styles.unreadBadge}>
-                            <Text style={styles.unreadText}>{item.unread_count}</Text>
-                        </View>
-                    )}
+                <View style={styles.conversationInfo}>
+                    <View style={styles.conversationHeader}>
+                        <Text style={styles.peerName} numberOfLines={1}>
+                            {peerDisplayName}
+                        </Text>
+                        <Text style={styles.timeText}>{item.last_message_at ? formatTime(item.last_message_at) : ''}</Text>
+                    </View>
+                    <View style={styles.conversationFooter}>
+                        <Text style={styles.lastMessage} numberOfLines={1}>
+                            Encrypted message
+                        </Text>
+                        {item.unread_count > 0 && (
+                            <View style={styles.unreadBadge}>
+                                <Text style={styles.unreadText}>{item.unread_count}</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
-            </View>
-        </TouchableOpacity>
-    );
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={styles.container}>

@@ -13,15 +13,18 @@ import { TouchableOpacity } from 'react-native';
 
 interface ProfileScreenProps {
     onGoBack: () => void;
+    onSave: () => void;
+    onEditAvatar?: () => void;
 }
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack }) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditAvatar }) => {
     const [firstName, setFirstName] = React.useState('');
     const [lastName, setLastName] = React.useState('');
     const [everyoneOnChat, setEveryoneOnChat] = React.useState(true);
 
     const handleSave = () => {
         // TODO: wire to backend when available
+        onSave();
     };
 
     return (
@@ -50,13 +53,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack }) => {
                                     resizeMode="cover"
                                 />
                             </View>
-                            <View style={styles.avatarBadge}>
+                            <TouchableOpacity style={styles.avatarBadge} onPress={onEditAvatar} activeOpacity={0.7}>
                                 <Image
                                     source={require('../assets/images/profile_avatar_badge.png')}
                                     style={styles.avatarBadgeIcon}
                                     resizeMode="contain"
                                 />
-                            </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
