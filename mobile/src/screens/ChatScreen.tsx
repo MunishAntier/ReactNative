@@ -16,8 +16,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { touchConversationLastMessageAt } from '../services/localChatStore';
-
+import { websocket } from '../services/websocket';
+import { sendEncryptedMessage, decryptIncomingMessage, isMessageAlreadyDecrypted } from '../services/signal';
+import { syncMessages } from '../services/messages';
 
 interface ChatMessage {
     id: string;
@@ -54,11 +55,12 @@ interface ChatScreenProps {
     peerDisplayName?: string;
     peerAvatar?: string | null;
     onGoBack: () => void;
+    onAboutUser?: (name: string, avatar?: any) => void;
 }
 
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
-    clashMedium: 'ClashDisplay-Medium',
+    clashMedium: 'ClashDisplay-Regular',
 };
 
 const DEFAULT_AVATAR = require('../assets/images/profile_avatar.png');
@@ -197,11 +199,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
     peerDisplayName,
     peerAvatar,
     onGoBack,
+    onAboutUser,
 }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
+    const [showMenu, setShowMenu] = useState(false);
     const [securityWarning, setSecurityWarning] = useState(false);
-    const [composerHeight, setComposerHeight] = useState(46);
 
     const lastPeerDeviceIdRef = useRef(1);
     const flatListRef = useRef<FlatList<TimelineItem>>(null);
@@ -222,10 +225,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             actionButtonSize: 44 * uiScale,
             avatarSize: 42 * uiScale,
             bubbleRadius: 16 * uiScale,
-            inputHeight: Math.min(Math.max(composerHeight, 42 * uiScale), 100 * uiScale),
+            inputHeight: 42 * uiScale,
             composerPaddingBottom: Math.max(insets.bottom, 10),
         }),
-        [composerHeight, insets.bottom, insets.top, uiScale],
+        [insets.bottom, insets.top, uiScale],
     );
 
     const displayName = useMemo(() => {
@@ -254,13 +257,168 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             if (cached.length > 0) {
                 setMessages(cached);
             }
+
+            try {
+                const lastSync = await AsyncStorage.getItem(syncTimestampKey(myUserId));
+                const since = lastSync || '2000-01-01T00:00:00Z';
+
+                const synced = await syncMessages(since, 200);
+                const relevant = synced.filter(
+                    m =>
+                        (m.sender_id === peerUserId && m.receiver_id === myUserId) ||
+                        (m.sender_id === myUserId && m.receiver_id === peerUserId),
+                );
+
+                if (relevant.length > 0) {
+                    const existingIds = new Set(cached.map(m => m.id));
+                    const newMessages: ChatMessage[] = [];
+
+                    for (const msg of relevant) {
+                        if (existingIds.has(msg.client_message_id)) continue;
+                        if (isMessageAlreadyDecrypted(msg.client_message_id)) {
+                            continue;
+                        }
+
+                        try {
+                            if (msg.sender_id === myUserId) {
+                                newMessages.push({
+                                    id: msg.client_message_id,
+                                    text: '[sent message]',
+                                    isMine: true,
+                                    timestamp: msg.created_at,
+                                    status: msg.read_at ? 'read' : msg.delivered_at ? 'delivered' : 'sent',
+                                    serverMessageId: msg.id,
+                                });
+                            } else {
+                                const plaintext = await decryptIncomingMessage(
+                                    msg.ciphertext_b64,
+                                    msg.header,
+                                    msg.sender_id,
+                                    msg.sender_device_id || 1,
+                                    myUserId,
+                                    msg.client_message_id,
+                                );
+                                if (msg.sender_device_id) {
+                                    lastPeerDeviceIdRef.current = msg.sender_device_id;
+                                }
+                                newMessages.push({
+                                    id: msg.client_message_id,
+                                    text: plaintext,
+                                    isMine: false,
+                                    timestamp: msg.created_at,
+                                    status: 'delivered',
+                                    serverMessageId: msg.id,
+                                });
+                            }
+                        } catch (err: any) {
+                            if (err.message?.startsWith('IDENTITY_CHANGED')) {
+                                setSecurityWarning(true);
+                            }
+                            newMessages.push({
+                                id: msg.client_message_id || `msg-${msg.id}`,
+                                text: 'Unable to decrypt',
+                                isMine: msg.sender_id === myUserId,
+                                timestamp: msg.created_at,
+                                status: 'failed',
+                                serverMessageId: msg.id,
+                            });
+                        }
+                    }
+
+                    if (newMessages.length > 0) {
+                        const merged = [...cached, ...newMessages];
+                        setMessages(merged);
+                        await saveCachedMessages(myUserId, peerUserId, merged);
+                    }
+                }
+
+                await AsyncStorage.setItem(syncTimestampKey(myUserId), new Date().toISOString());
+            } catch {
+            }
         };
 
         loadMessages();
     }, [peerUserId, myUserId]);
 
     useEffect(() => {
-        // Websocket and real-time syncing logic removed for frontend-only mode.
+        const unsubNew = websocket.on('message.new', async (data: any) => {
+            if (data.sender_user_id !== peerUserId) return;
+            if (!convIdRef.current && data.conversation_id) {
+                convIdRef.current = data.conversation_id;
+            }
+
+            try {
+                const plaintext = await decryptIncomingMessage(
+                    data.ciphertext_b64,
+                    data.header,
+                    data.sender_user_id,
+                    data.sender_device_id || 1,
+                    myUserId,
+                    data.client_message_id,
+                );
+
+                if (data.sender_device_id) {
+                    lastPeerDeviceIdRef.current = data.sender_device_id;
+                }
+
+                const newMsg: ChatMessage = {
+                    id: data.client_message_id,
+                    text: plaintext,
+                    isMine: false,
+                    timestamp: data.created_at || new Date().toISOString(),
+                    status: 'delivered',
+                    serverMessageId: data.server_message_id,
+                };
+
+                setMessages(prev => {
+                    const updated = [...prev, newMsg];
+                    saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
+                    return updated;
+                });
+
+                websocket.ackDelivered(data.server_message_id);
+            } catch (err: any) {
+                if (err.message?.startsWith('IDENTITY_CHANGED')) {
+                    setSecurityWarning(true);
+                }
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: data.client_message_id || `msg-${Date.now()}`,
+                        text: 'Unable to decrypt',
+                        isMine: false,
+                        timestamp: new Date().toISOString(),
+                        status: 'failed',
+                    },
+                ]);
+            }
+        });
+
+        const unsubStatus = websocket.on('message.status', (data: any) => {
+            setMessages(prev =>
+                prev.map(m =>
+                    m.serverMessageId === data.server_message_id
+                        ? { ...m, status: data.status }
+                        : m,
+                ),
+            );
+        });
+
+        const unsubIdentity = websocket.on('session.identity_changed', (data: any) => {
+            if (data.changed_user_id === peerUserId) {
+                setSecurityWarning(true);
+                Alert.alert(
+                    'Security Number Changed',
+                    'The security number for this contact has changed. Please verify identity before continuing.',
+                );
+            }
+        });
+
+        return () => {
+            unsubNew();
+            unsubStatus();
+            unsubIdentity();
+        };
     }, [peerUserId, myUserId]);
 
     const handleSend = useCallback(async () => {
@@ -273,37 +431,47 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
             text,
             isMine: true,
             timestamp: new Date().toISOString(),
-            status: 'sent',
+            status: 'sending',
         };
 
-        setMessages(prev => {
-            const updated = [...prev, newMsg];
-            saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
-            return updated;
-        });
-        touchConversationLastMessageAt(
-            myUserId,
-            peerUserId,
-            convIdRef.current,
-            newMsg.timestamp,
-            displayName,
-        ).catch(() => { });
+        setMessages(prev => [...prev, newMsg]);
         setInputText('');
-    }, [displayName, inputText, peerUserId, myUserId, myDeviceId]);
+
+        try {
+            const clientMessageId = await sendEncryptedMessage(
+                peerUserId,
+                text,
+                convIdRef.current,
+                myUserId,
+                myDeviceId,
+            );
+
+            setMessages(prev => {
+                const updated = prev.map(m =>
+                    m.id === tempId ? { ...m, id: clientMessageId, text, status: 'sent' as const } : m,
+                );
+                saveCachedMessages(myUserId, peerUserId, updated).catch(() => { });
+                return updated;
+            });
+        } catch (err: any) {
+            setMessages(prev => prev.map(m => (m.id === tempId ? { ...m, status: 'failed' } : m)));
+            Alert.alert('Send Failed', err.message);
+        }
+    }, [inputText, peerUserId, myUserId, myDeviceId]);
 
     const statusIcon = (status: ChatMessage['status']) => {
         switch (status) {
             case 'sending':
-                return '○';
+                return <Ionicons name="time-outline" size={12} color="#8E8E93" />;
             case 'sent':
-                return '✓';
+                return <Ionicons name="checkmark-outline" size={14} color="#8E8E93" />;
             case 'delivered':
             case 'read':
-                return '✓✓';
+                return <Ionicons name="checkmark-done" size={14} color="#34C759" />;
             case 'failed':
-                return '⚠';
+                return <Ionicons name="alert-circle-outline" size={14} color="#FF3B30" />;
             default:
-                return '';
+                return null;
         }
     };
 
@@ -353,9 +521,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     style={[
                         styles.messageBubble,
                         {
-                            borderRadius: ui.bubbleRadius,
-                            maxWidth: screenWidth * 0.72,
-                            paddingHorizontal: 18 * uiScale,
+                            borderRadius: 20 * uiScale,
+                            maxWidth: screenWidth * 0.75,
+                            paddingHorizontal: 20 * uiScale,
                             paddingVertical: 14 * uiScale,
                         },
                         isMine ? styles.messageBubbleMine : styles.messageBubbleTheirs,
@@ -363,7 +531,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     <Text
                         style={[
                             styles.messageText,
-                            { fontSize: 16 * uiScale, lineHeight: 23 * uiScale },
+                            { fontSize: 16 * uiScale, lineHeight: 22 * uiScale },
                             isMine ? styles.messageTextMine : styles.messageTextTheirs,
                             message.status === 'failed' && styles.failedText,
                         ]}>
@@ -375,18 +543,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                     style={[
                         styles.metaRow,
                         isMine ? styles.metaRowMine : styles.metaRowTheirs,
-                        { marginTop: 7 * uiScale },
+                        { marginTop: 6 * uiScale },
                     ]}>
-                    <Text style={[styles.metaTime, { fontSize: 15 * 0.8 * uiScale }]}>{formatTimeLabel(message.timestamp)}</Text>
-                    {isMine && (
-                        <Text
-                            style={[
-                                styles.metaStatus,
-                                { fontSize: 15 * 0.8 * uiScale },
-                                message.status === 'failed' ? styles.metaStatusFailed : styles.metaStatusOk,
-                            ]}>
+                    <Text style={[styles.metaTime, { fontSize: 13 * uiScale }]}>{formatTimeLabel(message.timestamp)}</Text>
+                    {isMine && statusGlyph && (
+                        <View style={{ marginLeft: 4 }}>
                             {statusGlyph}
-                        </Text>
+                        </View>
                     )}
                 </View>
             </View>
@@ -402,52 +565,82 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 style={[
                     styles.header,
                     {
-                        paddingTop: ui.headerTop,
-                        paddingBottom: ui.headerBottom,
-                        paddingHorizontal: ui.headerHorizontal,
+                        marginTop: 60, // Increased for better clearance
                     },
                 ]}>
-                <TouchableOpacity style={styles.backButton} onPress={onGoBack} activeOpacity={0.8}>
-                    <Ionicons name="arrow-back" size={ui.iconSize} color="#161616" />
-                </TouchableOpacity>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity style={styles.backButton} onPress={onGoBack} activeOpacity={0.8}>
+                        <Ionicons name="arrow-back" size={24} color="#161616" />
+                    </TouchableOpacity>
 
-                <Image
-                    source={avatarSource}
-                    style={{
-                        width: ui.avatarSize,
-                        height: ui.avatarSize,
-                        borderRadius: ui.avatarSize / 2,
-                        marginRight: 14 * uiScale,
-                    }}
-                />
+                    <TouchableOpacity 
+                        style={styles.headerProfileTrigger} 
+                        onPress={() => onAboutUser?.(displayName, avatarSource)}
+                        activeOpacity={0.7}
+                    >
+                        <Image
+                            source={avatarSource}
+                            style={styles.headerAvatar}
+                        />
 
-                <Text
-                    style={[styles.headerName, { fontSize: 31 * 0.8 * uiScale }]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail">
-                    {displayName}
-                </Text>
+                        <View style={styles.headerNameWrapper}>
+                            <Text
+                                style={styles.headerName}
+                                numberOfLines={1}
+                                ellipsizeMode="tail">
+                                {displayName}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
 
                 <View style={styles.headerActions}>
                     <TouchableOpacity
-                        style={[styles.headerActionButton, { width: ui.actionButtonSize, height: ui.actionButtonSize, borderRadius: 16 * uiScale }]}
+                        style={styles.headerActionButton}
                         onPress={() => handleActionPress('Video call')}>
-                        <Ionicons name="videocam-outline" size={ui.actionIconSize} color="#2a2a2a" />
+                        <Ionicons name="videocam-outline" size={20} color="#1E1E1E" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.headerActionButton, { width: ui.actionButtonSize, height: ui.actionButtonSize, borderRadius: 16 * uiScale }]}
+                        style={styles.headerActionButton}
                         onPress={() => handleActionPress('Voice call')}>
-                        <Ionicons name="call-outline" size={ui.actionIconSize} color="#2a2a2a" />
+                        <Ionicons name="call-outline" size={20} color="#1E1E1E" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.headerActionButton, { width: ui.actionButtonSize, height: ui.actionButtonSize, borderRadius: 16 * uiScale }]}
-                        onPress={() => handleActionPress('More options')}>
-                        <Ionicons name="ellipsis-vertical" size={ui.actionIconSize} color="#2a2a2a" />
+                        style={styles.headerActionButton}
+                        onPress={() => setShowMenu(true)}>
+                        <Ionicons name="ellipsis-vertical" size={20} color="#1E1E1E" />
                     </TouchableOpacity>
                 </View>
             </View>
+
+            {/* Header Menu */}
+            {showMenu && (
+                <TouchableOpacity
+                    style={styles.menuOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowMenu(false)}
+                >
+                    <View style={styles.menuContainer}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); handleActionPress('All media'); }}>
+                            <Text style={styles.menuItemText}>All media</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); handleActionPress('Chat settings'); }}>
+                            <Text style={styles.menuItemText}>Chat settings</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); handleActionPress('Search'); }}>
+                            <Text style={styles.menuItemText}>Search</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); handleActionPress('Add to home screen'); }}>
+                            <Text style={styles.menuItemText}>Add to home screen</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); handleActionPress('Mute Notifications'); }}>
+                            <Text style={styles.menuItemText}>Mute Notifications</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            )}
 
             {securityWarning && (
                 <View style={styles.warningBanner}>
@@ -475,43 +668,38 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 style={[
                     styles.composerWrap,
                     {
-                        paddingHorizontal: ui.messageHorizontal,
-                        paddingBottom: ui.composerPaddingBottom,
-                        paddingTop: 8 * uiScale,
+                        width: 382,
+                        alignSelf: 'center',
+                        marginBottom: Math.max(insets.bottom, 14),
                     },
                 ]}>
                 <View style={styles.composerRow}>
                     <View style={styles.composerInputShell}>
-                        <Ionicons name="attach-outline" size={20 * uiScale} color="#232323" style={styles.inputLeadingIcon} />
+                        <TouchableOpacity onPress={() => handleActionPress('Add attachment')} style={styles.leadingIconBtn}>
+                            <Ionicons name="attach-outline" size={24} color="#070707" />
+                        </TouchableOpacity>
 
                         <TextInput
                             style={[
                                 styles.textInput,
                                 {
-                                    fontSize: 14.5 * uiScale,
-                                    minHeight: ui.inputHeight,
-                                    maxHeight: 100 * uiScale,
+                                    fontSize: 16,
+                                    height: 42,
                                 },
                             ]}
                             value={inputText}
                             onChangeText={setInputText}
-                            placeholder="Secure message..."
-                            placeholderTextColor="#7A7A7A"
-                            multiline
+                            placeholder="Secure message.."
+                            placeholderTextColor="#ABABAB"
                             textAlignVertical="center"
                             returnKeyType="send"
-                            onSubmitEditing={handleSend}
-                            onContentSizeChange={event => {
-                                const nextHeight = event.nativeEvent.contentSize.height + 10;
-                                setComposerHeight(nextHeight);
-                            }}
                         />
 
-                        <TouchableOpacity onPress={() => handleActionPress('Add attachment')} style={styles.inlineIconBtn}>
-                            <Ionicons name="add-circle-outline" size={20 * uiScale} color="#232323" />
+                        <TouchableOpacity onPress={() => handleActionPress('More options')} style={styles.inlineIconBtn}>
+                            <Ionicons name="add-circle-outline" size={24} color="#070707" />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleActionPress('Voice note')} style={styles.inlineIconBtn}>
-                            <Ionicons name="mic-outline" size={20 * uiScale} color="#232323" />
+                            <Ionicons name="mic-outline" size={24} color="#070707" />
                         </TouchableOpacity>
                     </View>
 
@@ -519,7 +707,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                         style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
                         onPress={handleSend}
                         disabled={!inputText.trim()}>
-                        <Ionicons name="send" size={20 * uiScale} color="#FFFFFF" />
+                        <Ionicons name="paper-plane" size={20} color="#FFFFFF" />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -530,33 +718,102 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#D7DBDE',
+        backgroundColor: '#EBEBEC',
     },
     header: {
+        width: '100%',
+        maxWidth: 430,
+        height: 50,
         flexDirection: 'row',
         alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#C5C9CD',
-        backgroundColor: '#D7DBDE',
+        justifyContent: 'space-between',
+        paddingTop: 5,
+        paddingBottom: 5,
+        paddingLeft: 24,
+        paddingRight: 24,
+        backgroundColor: '#EBEBEC',
+        alignSelf: 'center',
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1, // Restored to allow name to occupy space
+    },
+    headerProfileTrigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginLeft: 10,
     },
     backButton: {
-        paddingVertical: 4,
         paddingRight: 10,
     },
+    headerAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        marginRight: 10,
+    },
+    headerNameWrapper: {
+        flex: 1, // Allow wrapper to take remaining space
+        justifyContent: 'center',
+    },
     headerName: {
-        flex: 1,
+        fontSize: 20,
         color: '#1E1E1E',
-        fontFamily: FONT_FAMILIES.clashMedium,
+        fontFamily: 'Gilroy-Regular',
+        fontWeight: '400',
+        lineHeight: 20,
+        letterSpacing: 0,
     },
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 13.42, // gap: 13.42px from design
     },
     headerActionButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#E7E8EA',
+        backgroundColor: '#FFFFFF',
+    },
+    menuOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'transparent',
+        zIndex: 1000,
+    },
+    menuContainer: {
+        position: 'absolute',
+        top: 115, // Adjusted to appear below the header icon
+        right: 24,
+        width: 162,
+        height: 157,
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderTopLeftRadius: 16,
+        borderBottomLeftRadius: 16,
+        borderBottomRightRadius: 16,
+        gap: 10,
+        // Premium shadow
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    menuItem: {
+        width: 130,
+        height: 17, // Adjusted to match item layout
+        justifyContent: 'center',
+    },
+    menuItemText: {
+        fontFamily: 'Gilroy-Medium',
+        fontSize: 14,
+        fontWeight: '400',
+        color: '#606060',
+        lineHeight: 14, // 100%
     },
     warningBanner: {
         marginTop: 8,
@@ -576,15 +833,15 @@ const styles = StyleSheet.create({
     },
     dayRow: {
         alignItems: 'center',
-        marginTop: 2,
-        marginBottom: 16,
+        marginTop: 4,
+        marginBottom: 20,
     },
     dayLabel: {
-        color: '#2F2F2F',
+        color: '#6E6E6E',
         fontFamily: FONT_FAMILIES.clashRegular,
     },
     messageBlock: {
-        marginBottom: 14,
+        marginBottom: 20,
     },
     messageBlockMine: {
         alignItems: 'flex-end',
@@ -594,18 +851,18 @@ const styles = StyleSheet.create({
     },
     messageBubble: {
         shadowColor: '#000000',
-        shadowOpacity: 0.03,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
         elevation: 1,
     },
     messageBubbleMine: {
-        backgroundColor: '#1340EE',
-        borderBottomRightRadius: 5,
+        backgroundColor: '#0147FF',
+        borderBottomRightRadius: 4,
     },
     messageBubbleTheirs: {
-        backgroundColor: '#F4F5F6',
-        borderBottomLeftRadius: 5,
+        backgroundColor: '#FFFFFF',
+        borderBottomLeftRadius: 4,
     },
     messageText: {
         fontFamily: FONT_FAMILIES.clashRegular,
@@ -614,14 +871,15 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     messageTextTheirs: {
-        color: '#181818',
+        color: '#1E1E1E',
     },
     failedText: {
-        color: '#D33232',
+        color: '#FF3B30',
     },
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingHorizontal: 4,
     },
     metaRowMine: {
         justifyContent: 'flex-end',
@@ -630,77 +888,73 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
     metaTime: {
-        color: '#6A6A6A',
+        color: '#8E8E93',
         fontFamily: FONT_FAMILIES.clashRegular,
-    },
-    metaStatus: {
-        marginLeft: 4,
-        fontFamily: FONT_FAMILIES.clashRegular,
-    },
-    metaStatusOk: {
-        color: '#32B364',
-    },
-    metaStatusFailed: {
-        color: '#D33232',
     },
     callChip: {
-        minHeight: 42,
+        minHeight: 44,
         borderRadius: 22,
-        backgroundColor: '#DCDCDD',
+        backgroundColor: '#E4E4E5',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 22,
-        paddingHorizontal: 14,
+        alignSelf: 'center',
+        marginBottom: 24,
+        paddingHorizontal: 20,
+        width: '85%',
     },
     callChipText: {
         color: '#6E6E6E',
         fontFamily: FONT_FAMILIES.clashRegular,
+        marginLeft: 8,
     },
     composerWrap: {
-        borderTopWidth: 1,
-        borderTopColor: '#D0D2D5',
-        backgroundColor: '#D7DBDE',
+        backgroundColor: 'transparent',
     },
     composerRow: {
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        alignItems: 'center',
+        gap: 8,
     },
     composerInputShell: {
         flex: 1,
-        backgroundColor: '#F6F7F8',
-        borderRadius: 14,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: 12,
-        paddingRight: 8,
-        marginRight: 10,
-        minHeight: 46,
+        paddingLeft: 4,
+        paddingRight: 4,
+        height: 42,
     },
-    inputLeadingIcon: {
-        marginRight: 8,
+    leadingIconBtn: {
+        width: 38,
+        height: 38,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     textInput: {
         flex: 1,
-        color: '#181818',
+        color: '#1E1E1E',
         fontFamily: FONT_FAMILIES.clashRegular,
-        paddingVertical: 9,
-        paddingHorizontal: 0,
+        paddingVertical: 0,
+        paddingHorizontal: 4,
     },
     inlineIconBtn: {
-        paddingHorizontal: 4,
-        paddingVertical: 6,
+        width: 32,
+        height: 38,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     sendButton: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        backgroundColor: '#1340EE',
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        backgroundColor: '#0147FF',
         alignItems: 'center',
         justifyContent: 'center',
     },
     sendButtonDisabled: {
-        opacity: 0.45,
+        opacity: 0.7,
     },
 });
 

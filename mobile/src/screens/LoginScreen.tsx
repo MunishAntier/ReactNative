@@ -11,28 +11,44 @@ import {
     Platform,
     Image,
     Dimensions,
+    StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-// import {
-
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+    startAuth,
+    verifyOTP,
+    loadUserInfo,
+    getOrCreateStableDeviceUuid,
+} from '../services/auth';
+import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
+import * as SignalManager from '../crypto/SignalManager';
+import { clearSignalStorage, getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';
+import BackArrow from '../components/common/BackArrow';
 
 interface LoginScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
     onShowSecret: (userId: number, deviceId: number) => void;
     onGoToProfile: () => void;
+    onContinue?: () => void;
 }
 
 type Step = 'email' | 'otp';
 
 const BASE_SCREEN_WIDTH = 430;
 const BASE_SCREEN_HEIGHT = 932;
-const STATUS_BAR_OFFSET = 20; // approximate iOS notch height in Figma base
+const STATUS_BAR_OFFSET = 20;
+
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
     clashMedium: 'ClashDisplay-Medium',
+    clashBold: 'ClashDisplay-Regular',
     gilroyRegular: 'Gilroy-Regular',
+    gilroyMedium: 'Gilroy-Medium',
 };
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile }) => {
+
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile, onContinue }) => {
+    const insets = useSafeAreaInsets();
     const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
     const wScale = screenWidth / BASE_SCREEN_WIDTH;
     const hScale = screenHeight / BASE_SCREEN_HEIGHT;
@@ -59,12 +75,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         }
 
         setLoading(true);
-        setTimeout(() => {
-            setDevOtp('123456');
-            setOtp('123456');
+        try {
+            const res = await startAuth(trimmedEmail);
+            if (res.dev_otp) {
+                setDevOtp(res.dev_otp);
+                setOtp(res.dev_otp);
+            }
             setStep('otp');
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to send OTP');
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     const handleVerifyOtp = async () => {
@@ -74,64 +96,55 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         }
 
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            if (otp === '123456') {
-                onLoginSuccess(1, 1);
-            } else {
-                Alert.alert('Error', 'Invalid OTP');
-            }
-        }, 1000);
-    };
+        try {
+            const previousUserInfo = await loadUserInfo();
+            const deviceUuid = await getOrCreateStableDeviceUuid(Platform.OS);
+            const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
 
-    const topOffset = STATUS_BAR_OFFSET * hScale;
+            const sameUserNewDevice =
+                previousUserInfo?.userId === res.user_id &&
+                previousUserInfo.deviceId !== res.device_id;
+
+            if (sameUserNewDevice) {
+                try {
+                    await SignalManager.clearAll();
+                } catch { }
+                try {
+                    await clearSignalStorage(res.user_id);
+                } catch { }
+            }
+
+            try {
+                const isNewIdentity = await SignalManager.initialize(res.user_id);
+                if (isNewIdentity || sameUserNewDevice) {
+                    await generateAndUploadKeys(res.user_id, 100);
+                    onShowSecret(res.user_id, res.device_id);
+                } else {
+                    try {
+                        const currentSpkId = await getCurrentSignedPreKeyId(res.user_id);
+                        if (currentSpkId === 0) {
+                            await rotateSignedPreKey(res.user_id);
+                            onShowSecret(res.user_id, res.device_id);
+                            return;
+                        }
+                    } catch { }
+                    onLoginSuccess(res.user_id, res.device_id);
+                }
+            } catch { }
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const heroFrameStyle = {
-        height: 552 * hScale,
-        top: topOffset,
-    };
-
-    const heroBandStyle = {
-        top: 222 * hScale,
-        height: 126 * hScale,
-    };
-
-    const upperFrameFadeStyle = {
-        top: 9.95 * hScale,
-        left: -426.12 * wScale,
-        width: 1168.5176 * wScale,
-        height: 397.542 * hScale,
-    };
-
-    const heroGlowPrimaryStyle = {
-        top: 92 * hScale,
-        left: -46 * wScale,
-        width: 322 * wScale,
-        height: 252 * hScale,
-    };
-
-    const heroGlowSecondaryStyle = {
-        top: 46 * hScale,
-        right: -120 * wScale,
-        width: 354 * wScale,
-        height: 294 * hScale,
-    };
-
-    const headerRowStyle = {
-        top: 94 * hScale,
-        left: 44 * wScale,
-        width: 170 * wScale,
-        height: 70 * wScale,
-    };
-
-    const copyBlockStyle = {
-        top: 180 * hScale,
-        left: 44 * wScale,
-        width: 342 * wScale,
+        height: 504 * hScale,
+        top: (Platform.OS === 'ios' ? 64 : 32) * hScale,
     };
 
     const lowerPanelStyle = {
-        top: 532 * hScale + topOffset,
+        top: 550 * hScale,
     };
 
     const dotsFieldStyle = {
@@ -144,7 +157,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
     const illustrationStyle = {
         width: 270.3709 * wScale,
         height: 280.9739 * hScale,
-        top: 439.18 * hScale + topOffset,
+        top: 435 * hScale,
         left: 79.81 * wScale,
     };
 
@@ -152,6 +165,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         left: 24 * wScale,
         right: 24 * wScale,
         bottom: 40 * hScale,
+        gap: 10,
     };
 
     return (
@@ -159,6 +173,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <SafeAreaView style={styles.safeArea} edges={['top']}>
+                <StatusBar barStyle="light-content" backgroundColor="#070707" />
                 {!showForm && (
                     <View style={styles.screenRoot}>
                         <View style={[styles.heroFrame, heroFrameStyle]}>
@@ -186,7 +201,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                         <View style={[styles.ctaGroup, ctaGroupStyle]}>
                             <TouchableOpacity
                                 style={styles.primaryButton}
-                                onPress={() => setShowForm(true)}
+                                onPress={() => {
+                                    if (onContinue) {
+                                        onContinue();
+                                    } else {
+                                        setShowForm(true);
+                                    }
+                                }}
                                 activeOpacity={0.9}>
                                 <Text
                                     style={[
@@ -234,7 +255,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
 
                 {showForm && (
                     <View style={styles.authOverlay}>
-                        <View style={styles.authHeader}>
+                        <View style={[styles.authHeader, { paddingTop: Math.max(insets.top, 20) }]}>
                             <TouchableOpacity onPress={() => setShowForm(false)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
@@ -243,6 +264,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                         <View style={styles.content}>
                             {step === 'email' ? (
                                 <View style={styles.formContainer}>
+                                    <View style={styles.logoContainer}>
+                                        <Text style={styles.title}>Welcome Back</Text>
+                                        <Text style={styles.subtitle}>Log in to your account</Text>
+                                    </View>
                                     <Text style={styles.label}>Email Address</Text>
                                     <TextInput
                                         style={styles.input}
@@ -304,7 +329,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                                             setOtp('');
                                             setDevOtp(null);
                                         }}>
-                                        <Text style={styles.backButtonText}>← Change Email</Text>
+                                        <View style={styles.backButtonContent}>
+                                            <BackArrow size={16} color="#6c63ff" />
+                                            <Text style={styles.backButtonText}>Change Email</Text>
+                                        </View>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -336,45 +364,6 @@ const styles = StyleSheet.create({
         right: 0,
         overflow: 'hidden',
     },
-    heroBand: {
-        position: 'absolute',
-        left: -24,
-        right: -24,
-        transform: [{ rotate: '-7deg' }],
-    },
-    upperFrameFade: {
-        position: 'absolute',
-    },
-    heroGlow: {
-        position: 'absolute',
-        borderRadius: 999,
-        transform: [{ rotate: '-12deg' }],
-    },
-    heroGlowSecondary: {
-        transform: [{ rotate: '8deg' }],
-    },
-    headerRow: {
-        position: 'absolute',
-    },
-    headerLogo: {
-        width: '100%',
-        height: '100%',
-    },
-    copyBlock: {
-        position: 'absolute',
-    },
-    headline: {
-        color: '#FCFDFD',
-        fontFamily: FONT_FAMILIES.clashMedium,
-        fontWeight: '500',
-        letterSpacing: 0,
-    },
-    bodyCopy: {
-        color: '#929292',
-        fontFamily: FONT_FAMILIES.gilroyRegular,
-        fontWeight: '400',
-        letterSpacing: 0,
-    },
     lowerPanel: {
         position: 'absolute',
         left: 0,
@@ -390,7 +379,6 @@ const styles = StyleSheet.create({
     },
     ctaGroup: {
         position: 'absolute',
-        gap: 10,
     },
     primaryButton: {
         height: 56,
@@ -402,7 +390,6 @@ const styles = StyleSheet.create({
     primaryButtonText: {
         color: '#FCFDFD',
         fontFamily: FONT_FAMILIES.clashRegular,
-        fontWeight: '400',
         lineHeight: 18,
         textAlign: 'center',
     },
@@ -418,7 +405,6 @@ const styles = StyleSheet.create({
     secondaryButtonText: {
         color: '#070707',
         fontFamily: FONT_FAMILIES.clashRegular,
-        fontWeight: '400',
         lineHeight: 18,
         textAlign: 'center',
     },
@@ -427,7 +413,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#070707',
     },
     authHeader: {
-        paddingTop: 56,
         paddingHorizontal: 24,
         paddingBottom: 16,
     },
@@ -436,21 +421,38 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 32,
     },
+    logoContainer: {
+        alignItems: 'center',
+        marginBottom: 48,
+    },
+    title: {
+        fontFamily: FONT_FAMILIES.clashMedium,
+        fontSize: 28,
+        color: '#ffffff',
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontFamily: FONT_FAMILIES.clashRegular,
+        fontSize: 14,
+        color: '#888',
+    },
     formContainer: {
         gap: 12,
     },
     label: {
+        fontFamily: FONT_FAMILIES.clashMedium,
         fontSize: 14,
-        fontWeight: '600',
         color: '#ccc',
         marginBottom: 4,
     },
     hint: {
+        fontFamily: FONT_FAMILIES.clashRegular,
         fontSize: 13,
         color: '#888',
         marginBottom: 4,
     },
     input: {
+        fontFamily: FONT_FAMILIES.clashRegular,
         backgroundColor: '#1a1a2e',
         borderRadius: 12,
         padding: 16,
@@ -470,13 +472,19 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     buttonText: {
+        fontFamily: FONT_FAMILIES.clashRegular,
+        fontWeight: '700',
         color: '#ffffff',
         fontSize: 16,
-        fontWeight: '600',
     },
     backButton: {
         alignItems: 'center',
         paddingVertical: 12,
+    },
+    backButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     backButtonText: {
         color: '#6c63ff',
@@ -490,7 +498,6 @@ const styles = StyleSheet.create({
     },
     devOtpText: {
         color: '#ffd700',
-        fontWeight: '700',
         fontSize: 16,
         letterSpacing: 3,
     },

@@ -8,7 +8,7 @@ import {
     ImageSourcePropType,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import BackArrow from './BackArrow';
 
 interface HeroSectionProps {
     title: string;
@@ -41,11 +41,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 
             {onBack && (
                 <TouchableOpacity
-                    style={[styles.backBtn, { top: Math.max(insets.top, 12) }]}
+                    style={[styles.backBtn, { top: 60 }]} // Aligned with the new global header margin
                     onPress={onBack}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
+                    <BackArrow size={24} color="#FFFFFF" />
                 </TouchableOpacity>
             )}
 
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
     },
     backBtn: {
         position: 'absolute',
-        left: 24 - 4,
-        width: 36,
-        height: 36,
+        left: 24, // Exact 24px padding
+        width: 40, // Consistent with refined action buttons
+        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 10,
@@ -87,20 +87,18 @@ const styles = StyleSheet.create({
         paddingBottom: 28,
     },
     heroTitle: {
-        fontFamily: 'ClashDisplay-Medium',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 28,
-        color: '#FCFDFD',
-        lineHeight: 28,
-        letterSpacing: 0,
+        color: '#FFFFFF',
+        lineHeight: 34,
+        letterSpacing: -0.5,
         marginBottom: 8,
     },
     heroSubtitle: {
-        fontFamily: 'Gilroy-Regular',
-        fontSize: 16,
-        fontWeight: '400',
-        color: '#929292',
-        lineHeight: 24,
-        letterSpacing: 0,
+        fontFamily: 'ClashDisplay-Regular',
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.75)',
+        lineHeight: 20,
     },
 });
 

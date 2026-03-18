@@ -1,0 +1,284 @@
+import { getAccessToken, loadTokens } from './api';
+import { WS_URL } from './config';
+import { replenishOneTimePreKeys, checkAndReplenishPreKeys } from './keys';
+
+type EventHandler = (data: any) => void;
+
+interface WebSocketConfig {
+    url?: string;
+    reconnectMaxAttempts?: number;
+    reconnectBaseDelay?: number;
+    presencePingInterval?: number;
+    pongTimeoutMs?: number;
+}
+
+class SecureWebSocket {
+    private ws: WebSocket | null = null;
+    private userId: number | null = null;
+    private handlers = new Map<string, Set<EventHandler>>();
+    private reconnectAttempts = 0;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private presenceTimer: ReturnType<typeof setInterval> | null = null;
+    private pongTimer: ReturnType<typeof setTimeout> | null = null;
+    private intentionallyClosed = false;
+    private config: Required<WebSocketConfig>;
+
+    constructor(config: WebSocketConfig = {}) {
+        this.config = {
+            url: config.url || WS_URL,
+            reconnectMaxAttempts: config.reconnectMaxAttempts || 10,
+            reconnectBaseDelay: config.reconnectBaseDelay || 1000,
+            presencePingInterval: config.presencePingInterval || 60000,
+            pongTimeoutMs: config.pongTimeoutMs || 10000,
+        };
+    }
+
+    connect(userId: number): void {
+        this.userId = userId;
+        const token = getAccessToken();
+        if (!token) {
+            console.warn('[WS] No access token, cannot connect');
+            return;
+        }
+
+        this.intentionallyClosed = false;
+        const url = `${this.config.url}?token=${encodeURIComponent(token)}`;
+        this.ws = new WebSocket(url);
+
+        this.ws.onopen = () => {
+            console.log('[WS] Connected');
+            this.reconnectAttempts = 0;
+            this.emit('connection', { status: 'connected' });
+            this.startPresencePing();
+
+            // Check pre-key count on every connect/reconnect.
+            // Covers the case where 'prekeys.low' was missed while offline.
+            if (this.userId) {
+                checkAndReplenishPreKeys(this.userId).catch(err =>
+                    console.warn('[WS] Pre-key check on connect failed:', err),
+                );
+            }
+        };
+
+        this.ws.onmessage = (event: WebSocketMessageEvent) => {
+            try {
+                const data = JSON.parse(event.data as string);
+                const type = data.type as string;
+
+                // Clear pong timeout on any server message (acts as pong)
+                this.clearPongTimer();
+
+                // Handle system events
+                if (type === 'prekeys.low' && this.userId) {
+                    replenishOneTimePreKeys(this.userId).catch(err =>
+                        console.error('[WS] Failed to replenish pre-keys:', err),
+                    );
+                }
+
+                this.emit(type, data);
+                this.emit('*', data); // wildcard listener
+            } catch (err) {
+                console.error('[WS] Failed to parse message:', err);
+            }
+        };
+
+        this.ws.onerror = (event: Event) => {
+            console.error('[WS] Error:', event);
+            this.emit('error', event);
+        };
+
+        this.ws.onclose = (event: WebSocketCloseEvent) => {
+            console.log('[WS] Closed:', event.code, event.reason);
+            this.stopPresencePing();
+            this.clearPongTimer();
+            this.emit('connection', { status: 'disconnected' });
+            if (!this.intentionallyClosed) {
+                this.scheduleReconnect();
+            }
+        };
+    }
+
+    private startPresencePing(): void {
+        this.stopPresencePing();
+        this.presenceTimer = setInterval(() => {
+            this.send({ type: 'presence.ping' });
+            // Start pong timeout — if no message from server within timeout,
+            // consider the connection dead (Issue 21)
+            this.startPongTimer();
+        }, this.config.presencePingInterval);
+    }
+
+    private stopPresencePing(): void {
+        if (this.presenceTimer) {
+            clearInterval(this.presenceTimer);
+            this.presenceTimer = null;
+        }
+    }
+
+    private startPongTimer(): void {
+        this.clearPongTimer();
+        this.pongTimer = setTimeout(() => {
+            console.warn('[WS] Pong timeout — server unresponsive, closing connection');
+            this.ws?.close(4000, 'pong timeout');
+        }, this.config.pongTimeoutMs);
+    }
+
+    private clearPongTimer(): void {
+        if (this.pongTimer) {
+            clearTimeout(this.pongTimer);
+            this.pongTimer = null;
+        }
+    }
+
+    private async scheduleReconnect(): Promise<void> {
+        if (this.reconnectAttempts >= this.config.reconnectMaxAttempts) {
+            console.warn('[WS] Max reconnect attempts reached');
+            this.emit('connection', { status: 'failed' });
+            return;
+        }
+
+        // Refresh access token before reconnecting (Issue 9)
+        try {
+            await loadTokens();
+        } catch (err) {
+            console.warn('[WS] Token refresh before reconnect failed:', err);
+        }
+
+        const delay =
+            this.config.reconnectBaseDelay * Math.pow(2, this.reconnectAttempts) +
+            Math.random() * 1000;
+
+        this.reconnectAttempts++;
+        console.log(
+            `[WS] Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`,
+        );
+
+        this.reconnectTimer = setTimeout(() => {
+            if (this.userId) {
+                this.connect(this.userId);
+            }
+        }, delay);
+    }
+
+    send(payload: object): void {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(payload));
+        } else {
+            console.warn('[WS] Cannot send, not connected');
+        }
+    }
+
+    /**
+     * Send a fan-out encrypted message with per-device ciphertexts (Rule 28).
+     */
+    sendFanOutMessage(
+        receiverUserId: number,
+        clientMessageId: string,
+        ciphertexts: Array<{
+            receiver_device_id: number;
+            ciphertext_b64: string;
+            header: Record<string, any>;
+        }>,
+        conversationId: number | string | null = null,
+        messageType: 'text' | 'media' | 'call' | 'system' = 'text',
+    ): void {
+        this.send({
+            type: 'message.send.fanout',
+            conversation_id: conversationId,
+            receiver_user_id: receiverUserId,
+            client_message_id: clientMessageId,
+            message_type: messageType,
+            sent_at: Date.now(),
+            ciphertexts,
+        });
+    }
+
+    /**
+     * Acknowledge message delivery.
+     */
+    ackDelivered(serverMessageId: number): void {
+        this.send({
+            type: 'message.ack.delivered',
+            server_message_id: serverMessageId,
+        });
+    }
+
+    /**
+     * Acknowledge message read.
+     */
+    ackRead(serverMessageId: number): void {
+        this.send({
+            type: 'message.ack.read',
+            server_message_id: serverMessageId,
+        });
+    }
+
+    /**
+     * Request message sync over WebSocket (replaces HTTP sync).
+     * Sends 'messages.sync' and waits for 'messages.sync.response'.
+     */
+    requestSync(since: string, limit: number = 200, timeoutMs: number = 10000): Promise<any[]> {
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                unsubResponse();
+                unsubError();
+                reject(new Error('Sync request timed out'));
+            }, timeoutMs);
+
+            const unsubResponse = this.on('messages.sync.response', (data) => {
+                clearTimeout(timer);
+                unsubResponse();
+                unsubError();
+                resolve(data.items || []);
+            });
+
+            const unsubError = this.on('messages.sync.error', (data) => {
+                clearTimeout(timer);
+                unsubResponse();
+                unsubError();
+                reject(new Error(data.error || 'Sync failed'));
+            });
+
+            this.send({ type: 'messages.sync', since, limit });
+        });
+    }
+
+    on(event: string, handler: EventHandler): () => void {
+        if (!this.handlers.has(event)) {
+            this.handlers.set(event, new Set());
+        }
+        this.handlers.get(event)!.add(handler);
+        return () => this.handlers.get(event)?.delete(handler);
+    }
+
+    private emit(event: string, data: any): void {
+        this.handlers.get(event)?.forEach(handler => {
+            try {
+                handler(data);
+            } catch (err) {
+                console.error(`[WS] Handler error for ${event}:`, err);
+            }
+        });
+    }
+
+    disconnect(): void {
+        this.intentionallyClosed = true;
+        this.stopPresencePing();
+        this.clearPongTimer();
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        this.ws?.close();
+        this.ws = null;
+        this.userId = null;
+    }
+
+    get isConnected(): boolean {
+        return this.ws?.readyState === WebSocket.OPEN;
+    }
+}
+
+// Singleton instance
+export const websocket = new SecureWebSocket();
+export type { EventHandler };

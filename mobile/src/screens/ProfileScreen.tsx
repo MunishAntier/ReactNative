@@ -6,10 +6,10 @@ import {
     TextInput,
     ScrollView,
     Image,
+    TouchableOpacity,
 } from 'react-native';
-import HeroSection from '../Components/common/HeroSection';
-import FooterSection from '../Components/common/FooterSectioon';
-import { TouchableOpacity } from 'react-native';
+import HeroSection from '../components/common/HeroSection';
+import FooterSection from '../components/common/FooterSection';
 
 interface ProfileScreenProps {
     onGoBack: () => void;
@@ -23,7 +23,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
     const [everyoneOnChat, setEveryoneOnChat] = React.useState(true);
 
     const handleSave = () => {
-        // TODO: wire to backend when available
         onSave();
     };
 
@@ -124,20 +123,6 @@ const styles = StyleSheet.create({
     header: {
         position: 'relative',
     },
-    backButton: {
-        position: 'absolute',
-        top: 50,
-        left: 20,
-        zIndex: 10,
-        padding: 10,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 20,
-    },
-    backButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
     scroll: {
         flex: 1,
     },
@@ -204,18 +189,6 @@ const styles = StyleSheet.create({
     inputSpacing: {
         marginTop: 8,
     },
-    fieldLabel: {
-        fontFamily: 'ClashDisplay-Regular',
-        fontSize: 14,
-        color: '#626262',
-        marginBottom: 6,
-    },
-    fieldLabelSpacing: {
-        marginTop: 14,
-    },
-    requiredMark: {
-        color: '#FF4B55',
-    },
     inputWrapper: {
         position: 'relative',
     },
@@ -230,14 +203,12 @@ const styles = StyleSheet.create({
     placeholderText: {
         fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         color: '#606060',
         letterSpacing: 0,
     },
     placeholderAsterisk: {
         fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         color: '#FF4B55',
         letterSpacing: 0,
     },
@@ -249,7 +220,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         letterSpacing: 0,
         backgroundColor: '#E4E9EC',
         color: '#606060',
@@ -304,4 +274,3 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
-

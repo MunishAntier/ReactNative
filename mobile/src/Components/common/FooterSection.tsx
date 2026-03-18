@@ -37,11 +37,11 @@ const FooterSection: React.FC<FooterSectionProps> = ({
 
 const styles = StyleSheet.create({
     footer: {
-        backgroundColor: '#E4E9EC',
+        backgroundColor: '#F5F6F8',
         paddingHorizontal: 24,
         paddingTop: 16,
-        borderTopWidth: 0.5,
-        borderTopColor: '#929292',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: '#D4D4D4',
     },
     primaryBtn: {
         backgroundColor: '#111111',
@@ -53,10 +53,8 @@ const styles = StyleSheet.create({
     primaryBtnText: {
         fontFamily: 'ClashDisplay-Regular',
         fontSize: 18,
-        fontWeight: '400',
         color: '#FCFDFD',
-        lineHeight: 18,
-        letterSpacing: 0,
+        letterSpacing: 0.2,
         textAlign: 'center',
     },
 });

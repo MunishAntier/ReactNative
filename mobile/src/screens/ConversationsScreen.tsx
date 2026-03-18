@@ -10,6 +10,7 @@ import {
     Alert,
 } from 'react-native';
 import { loadConversations as loadStoredConversations, upsertConversation } from '../services/localChatStore';
+
 export interface ConversationItem {
     conversation_id: number;
     peer_user_id: number;
@@ -69,11 +70,6 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
         loadConversations();
     }, [loadConversations]);
 
-    // Real-time: removed websocket
-    useEffect(() => {
-        // no-op
-    }, [loadConversations]);
-
     const onRefresh = async () => {
         setRefreshing(true);
         await loadConversations();
@@ -86,11 +82,16 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
             Alert.alert('Error', 'Please enter an email address');
             return;
         }
+        
         setShowNewChat(false);
         setNewChatEmail('');
+        
+        // Mocking user lookup and conversation creation for now to match master's "frontend-only" spirit
+        // but keeping the structure functional.
         const peerUserId = Math.floor(Math.random() * 1000) + 1;
         const conversationId = Date.now();
         const peerDisplayName = getPeerDisplayName(peerUserId, email);
+        
         await upsertConversation(userId, {
             conversationId,
             peerUserId,
@@ -99,6 +100,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
             lastMessageAt: new Date().toISOString(),
             unreadCount: 0,
         });
+        
         await loadConversations();
         onSelectConversation(conversationId, peerUserId, { peerDisplayName, peerAvatar: null });
     };
@@ -161,7 +163,6 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Chats</Text>
                 <View style={styles.headerActions}>
@@ -174,7 +175,6 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
                 </View>
             </View>
 
-            {/* New Chat Modal */}
             {showNewChat && (
                 <View style={styles.newChatBanner}>
                     <View style={styles.newChatRow}>
@@ -209,7 +209,6 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
                 </View>
             )}
 
-            {/* Conversation List */}
             <FlatList
                 data={conversations}
                 renderItem={renderConversation}
@@ -237,26 +236,24 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
     );
 };
 
-
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#0a0a0f',
     },
     header: {
+        width: '100%',
+        height: 50,
+        marginTop: 60,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 56,
-        paddingBottom: 16,
+        paddingHorizontal: 24,
         borderBottomWidth: 1,
         borderBottomColor: '#1a1a2e',
     },
     headerTitle: {
         fontSize: 28,
-        fontWeight: '700',
         color: '#ffffff',
     },
     headerActions: {
@@ -317,7 +314,6 @@ const styles = StyleSheet.create({
     },
     newChatSendText: {
         color: '#fff',
-        fontWeight: '600',
     },
     newChatClose: {
         padding: 8,
@@ -347,7 +343,6 @@ const styles = StyleSheet.create({
     avatarText: {
         color: '#6c63ff',
         fontSize: 20,
-        fontWeight: '700',
     },
     conversationInfo: {
         flex: 1,
@@ -360,7 +355,6 @@ const styles = StyleSheet.create({
     },
     peerName: {
         fontSize: 16,
-        fontWeight: '600',
         color: '#ffffff',
         flex: 1,
         marginRight: 8,
@@ -391,7 +385,6 @@ const styles = StyleSheet.create({
     unreadText: {
         color: '#fff',
         fontSize: 12,
-        fontWeight: '700',
     },
     empty: {
         flex: 1,
@@ -408,7 +401,6 @@ const styles = StyleSheet.create({
     },
     emptyTitle: {
         fontSize: 18,
-        fontWeight: '600',
         color: '#ccc',
         marginBottom: 8,
     },
