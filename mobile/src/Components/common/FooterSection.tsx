@@ -51,9 +51,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     primaryBtnText: {
-        fontFamily: 'ClashDisplay-Bold',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 18,
-        fontWeight: '400',
         color: '#FCFDFD',
         letterSpacing: 0.2,
         textAlign: 'center',

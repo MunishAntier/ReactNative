@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,14 +6,13 @@ import {
     TouchableOpacity,
     ScrollView,
     TextInput,
-    Platform,
     StatusBar,
     FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
 import ScreenHeader from '../components/common/ScreenHeader';
 import FooterSection from '../components/common/FooterSection';
-import * as Contacts from 'expo-contacts';
 
 // -- Constants --
 const C = {
@@ -27,6 +26,7 @@ const C = {
 };
 
 const ACTION_ITEMS = [
+    { id: 'group', label: 'New Group', icon: 'people-outline' },
     { id: 'username', label: 'Find by username', icon: 'person-outline' },
     { id: 'phone', label: 'Find by phone number', icon: 'phone-portrait-outline' },
 ];
@@ -41,16 +41,30 @@ interface ContactItem {
 const AVATAR_COLORS = ['#BDE8E0', '#F2E8CF', '#E2D1F9'];
 
 interface Props {
+    title: string;
+    multiSelect?: boolean;
+    showActions?: boolean;
     navigation?: any;
+    onBack: () => void;
+    onContinue?: (selectedIds: string[]) => void;
+    onNewGroup?: () => void;
 }
 
-const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
+const ContactPickerScreen: React.FC<Props> = ({
+    title,
+    multiSelect = false,
+    showActions = false,
+    navigation,
+    onBack,
+    onContinue,
+    onNewGroup,
+}) => {
     const [searchText, setSearchText] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [contacts, setContacts] = useState<ContactItem[]>([]);
     const [loading, setLoading] = useState(true);
 
-    React.useEffect(() => {
+    useEffect(() => {
         loadContacts();
     }, []);
 
@@ -84,6 +98,11 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
     );
 
     const toggleSelection = (id: string) => {
+        if (!multiSelect) {
+            // If single select, maybe just return or handling differently
+            // For now, let's keep it simple. If single select, usually we navigate away immediately.
+            return;
+        }
         if (selectedIds.includes(id)) {
             setSelectedIds(selectedIds.filter(i => i !== id));
         } else {
@@ -91,15 +110,18 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
+    const handleActionPress = (id: string) => {
+        if (id === 'group') onNewGroup?.();
+        if (id === 'username') navigation?.navigate('FindByUsername');
+        if (id === 'phone') navigation?.navigate('FindByPhoneNumber');
+    };
+
     const renderActionItem = (item: typeof ACTION_ITEMS[0]) => (
         <TouchableOpacity
             key={item.id}
             style={styles.actionRow}
             activeOpacity={0.7}
-            onPress={() => {
-                if (item.id === 'username') navigation?.navigate('FindByUsername');
-                if (item.id === 'phone') navigation?.navigate('FindByPhoneNumber');
-            }}
+            onPress={() => handleActionPress(item.id)}
         >
             <View style={styles.actionIconBox}>
                 <Ionicons name={item.icon as any} size={22} color={C.dark} />
@@ -121,9 +143,11 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
                     <Text style={[styles.avatarText, { color: item.color === '#BDE8E0' ? '#2DAA94' : item.color === '#F2E8CF' ? '#D4A017' : '#9B51E0' }]}>{item.initial}</Text>
                 </View>
                 <Text style={styles.contactName}>{item.name}</Text>
-                <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected && <Ionicons name="checkmark" size={14} color={C.white} />}
-                </View>
+                {multiSelect && (
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                        {isSelected && <Ionicons name="checkmark" size={14} color={C.white} />}
+                    </View>
+                )}
             </TouchableOpacity>
         );
     };
@@ -133,8 +157,17 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
             <StatusBar barStyle="dark-content" />
 
             <ScreenHeader
-                title="Select Members"
-                onBack={() => navigation?.goBack()}
+                title={`${title} (${contacts.length})`}
+                onBack={onBack}
+                rightComponent={
+                    !multiSelect ? (
+                        <TouchableOpacity style={styles.moreBtn} activeOpacity={0.7}>
+                            <View style={styles.moreIconBox}>
+                                <Ionicons name="ellipsis-vertical" size={20} color={C.dark} />
+                            </View>
+                        </TouchableOpacity>
+                    ) : null
+                }
             />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -154,9 +187,14 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
 
                 {/* Actions */}
-                <View style={styles.actionsList}>
-                    {ACTION_ITEMS.map(renderActionItem)}
-                </View>
+                {showActions && (
+                    <View style={styles.actionsList}>
+                        {ACTION_ITEMS.map(item => {
+                            if (item.id === 'group' && !onNewGroup) return null;
+                            return renderActionItem(item);
+                        })}
+                    </View>
+                )}
 
                 {/* Contacts Section */}
                 <View style={styles.contactsSection}>
@@ -176,11 +214,12 @@ const SelectMemberScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
             </ScrollView>
 
-            {/* Footer */}
-            <FooterSection
-                buttonTitle="Continue"
-                onButtonPress={() => console.log('Continue with:', selectedIds)}
-            />
+            {multiSelect && (
+                <FooterSection
+                    buttonTitle="Continue"
+                    onButtonPress={() => onContinue?.(selectedIds)}
+                />
+            )}
         </View>
     );
 };
@@ -190,9 +229,26 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: C.bg,
     },
+    moreBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: C.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    moreIconBox: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     scrollContent: {
         paddingHorizontal: 16,
-        paddingBottom: 100, // Space for footer
+        paddingBottom: 100,
     },
     searchWrapper: {
         flexDirection: 'row',
@@ -234,19 +290,17 @@ const styles = StyleSheet.create({
     actionLabel: {
         flex: 1,
         fontSize: 16,
-        fontWeight: '500',
         color: C.dark,
-        fontFamily: 'Gilroy-Medium',
+        fontFamily: 'Gilroy-Regular',
     },
     contactsSection: {
         marginTop: 10,
     },
     sectionTitle: {
         fontSize: 20,
-        fontWeight: '700',
         color: C.blue,
         marginBottom: 16,
-        fontFamily: 'Clash Display',
+        fontFamily: 'ClashDisplay-Regular',
     },
     contactRow: {
         flexDirection: 'row',
@@ -263,14 +317,12 @@ const styles = StyleSheet.create({
     },
     avatarText: {
         fontSize: 18,
-        fontWeight: '600',
     },
     contactName: {
         flex: 1,
         fontSize: 16,
-        fontWeight: '500',
         color: C.dark,
-        fontFamily: 'Gilroy-Medium',
+        fontFamily: 'Gilroy-Regular',
     },
     checkbox: {
         width: 22,
@@ -299,4 +351,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default SelectMemberScreen;
+export default ContactPickerScreen;

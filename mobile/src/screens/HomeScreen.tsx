@@ -87,22 +87,21 @@ const filterStyles = StyleSheet.create({
     text: {
         fontFamily: 'Clash Display',
         fontSize: 14,
-        fontWeight: '500',
         color: C.skipGrey,
         lineHeight: 14, // 100%
     },
     textActive: {
         color: C.dark,
-        fontWeight: '500',
     },
 });
 
 // ─── Chat Item Component ─────────────────────────────────────────────────────
 interface ChatItemProps {
     item: typeof MOCK_CHATS[0];
+    onPress?: (item: typeof MOCK_CHATS[0]) => void;
 }
-const ChatItem: React.FC<ChatItemProps> = ({ item }) => (
-    <TouchableOpacity style={chatStyles.row} activeOpacity={0.7}>
+const ChatItem: React.FC<ChatItemProps> = ({ item, onPress }) => (
+    <TouchableOpacity style={chatStyles.row} activeOpacity={0.7} onPress={() => onPress?.(item)}>
         <View style={chatStyles.avatarWrap}>
             {item.isGroup ? (
                 <View style={chatStyles.groupAvatarBox}>
@@ -153,28 +152,28 @@ const chatStyles = StyleSheet.create({
         marginBottom: 8,
     },
     avatarWrap: { marginRight: 12 },
-    avatarCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#F0F0F0', overflow: 'hidden' },
+    avatarCircle: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#F0F0F0', overflow: 'hidden' },
     groupAvatarBox: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#F5F2E8', alignItems: 'center', justifyContent: 'center' },
     avatarImg: { width: '100%', height: '100%' },
     lockBadge: {
         position: 'absolute', bottom: 0, right: 0,
-        width: 18, height: 18, borderRadius: 9, backgroundColor: C.blue,
+        width: 18, height: 18, borderRadius: 6, backgroundColor: C.blue,
         alignItems: 'center', justifyContent: 'center',
         borderWidth: 2, borderColor: C.white,
     },
     content: { flex: 1, justifyContent: 'center', paddingBottom: 8 },
     topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
-    name: { fontFamily: 'Gilroy-Medium', fontSize: 16, fontWeight: '400', color: C.dark },
-    time: { fontSize: 12, color: C.blue, fontWeight: '500' },
+    name: { fontFamily: 'Gilroy-Regular', fontSize: 16, color: C.dark },
+    time: { fontSize: 12, color: C.blue },
     timeGrey: { fontSize: 13, color: '#999' },
     bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     msgContainer: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    msg: { fontSize: 14, color: '#666', flex: 1, marginRight: 8, fontWeight: '500' },
+    msg: { fontSize: 14, color: '#666', flex: 1, marginRight: 8 },
     unreadBadge: {
         backgroundColor: C.blue, width: 20, height: 20,
-        borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+        borderRadius: 6, alignItems: 'center', justifyContent: 'center',
     },
-    unreadText: { color: C.white, fontSize: 11, fontWeight: '700' },
+    unreadText: { color: C.white, fontSize: 11 },
 });
 
 // ─── Main HomeScreen Component ───────────────────────────────────────────────
@@ -188,6 +187,7 @@ interface Props {
     onSkip?: () => void;
     onTabPress?: (key: string) => void;
     onGetStartedItem?: (key: string) => void;
+    onChatPress?: (item: typeof MOCK_CHATS[0]) => void;
 }
 
 const HomeScreen: React.FC<Props> = ({
@@ -200,6 +200,7 @@ const HomeScreen: React.FC<Props> = ({
     onSkip,
     onTabPress,
     onGetStartedItem,
+    onChatPress,
 }) => {
     const [searchText, setSearchText] = useState('');
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
@@ -271,7 +272,7 @@ const HomeScreen: React.FC<Props> = ({
                         <>
                             <FilterBar active={activeFilter} onSelect={setActiveFilter} />
                             {MOCK_CHATS.map(chat => (
-                                <ChatItem key={chat.id} item={chat} />
+                                <ChatItem key={chat.id} item={chat} onPress={onChatPress} />
                             ))}
                             <View style={{ height: 120 }} />
                         </>
@@ -312,28 +313,28 @@ const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: C.bg },
     root: { flex: 1, backgroundColor: C.bg },
     topNav: {
+        width: '100%',
+        height: 50,
+        marginTop: 60, // Consistent with ChatScreen refinement
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 20) + 20,
-        paddingBottom: 12,
+        paddingHorizontal: 24, // Consistent with ChatScreen refinement
+        backgroundColor: C.bg,
     },
     greetRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    avatar: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#D0D0D0' },
+    avatar: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#D0D0D0' },
     greetText: { gap: 1 },
-    greetName: { fontSize: 15, fontWeight: '700', color: C.dark },
-    greetSub: { fontSize: 12, fontWeight: '500', color: C.subtitleBlue },
-    navActions: { flexDirection: 'row', gap: 8 },
+    greetName: { fontSize: 16, color: C.dark, fontFamily: 'Gilroy-Medium' },
+    greetSub: { fontSize: 13, color: C.subtitleBlue, fontFamily: 'ClashDisplay-Regular' },
+    navActions: { flexDirection: 'row', gap: 13.42 }, // Consistent with ChatScreen refinement
     navIconBtn: {
-        width: 36, height: 36, borderRadius: 10, backgroundColor: C.white,
+        width: 40, height: 40, borderRadius: 14, backgroundColor: C.white, // Consistent with ChatScreen refinement
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
     },
     scroll: { flex: 1 },
     scrollContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20 },
-    headline: { fontSize: 28, fontWeight: '800', color: C.dark, lineHeight: 36, marginBottom: 20 },
+    headline: { fontSize: 28, color: C.dark, lineHeight: 36, marginBottom: 20 },
     searchWrapper: {
         flexDirection: 'row', alignItems: 'center', backgroundColor: C.searchBg,
         borderRadius: 9, borderWidth: 1, borderColor: C.searchBorder,

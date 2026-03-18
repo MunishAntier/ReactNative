@@ -24,10 +24,9 @@ import ConfirmPINScreen from '../screens/ConfirmPINScreen';
 import PhoneScreen from '../screens/PhoneScreen';
 import HomeScreen from '../screens/HomeScreen';
 import CallMenu from '../screens/CallMenu';
-import SelectContactScreen from '../screens/SelectContactScreen';
-import SelectMemberScreen from '../screens/SelectMemberScreen';
-import FindByUsernameScreen from '../screens/FindByUsernameScreen';
-import FindByPhoneNumberScreen from '../screens/FindByPhoneNumberScreen';
+import ContactPickerScreen from '../screens/ContactPickerScreen';
+import FindUserScreen from '../screens/FindUserScreen';
+import AboutUserScreen from '../screens/AboutUserScreen';
 
 type Screen =
     | { name: 'loading' }
@@ -55,14 +54,19 @@ type Screen =
         peerUserId: number;
         peerDisplayName?: string;
         peerAvatar?: string | null;
+    }
+    | {
+        name: 'about_user';
+        userName: string;
+        userAvatar?: any;
     };
 
 const AppNavigator: React.FC = () => {
     const [fontsLoaded] = useFonts({
         'ClashDisplay-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
-        'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
-        'ClashDisplay-Bold': require('../assets/fonts/ClashDisplay-Bold.otf'),
-        'Gilroy-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
+        'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Regular.otf'),
+        'ClashDisplay-Bold': require('../assets/fonts/ClashDisplay-Regular.otf'),
+        'Gilroy-Medium': require('../assets/fonts/ClashDisplay-Regular.otf'),
         'Gilroy-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
     });
 
@@ -218,11 +222,7 @@ const AppNavigator: React.FC = () => {
 
     const handleGoBack = useCallback(() => {
         if (screen.name === 'chat') {
-            setScreen({
-                name: 'conversations',
-                userId: screen.userId,
-                deviceId: screen.deviceId,
-            });
+            setScreen({ name: 'home' });
         } else {
             goBack();
         }
@@ -308,6 +308,18 @@ const AppNavigator: React.FC = () => {
                             if (key === 'invite') navigateTo({ name: 'select_contact' });
                             if (key === 'group') navigateTo({ name: 'select_member' });
                         }}
+                        onChatPress={async (item) => {
+                            const userInfo = await loadUserInfo();
+                            navigateTo({
+                                name: 'chat',
+                                userId: userInfo?.userId ?? 0,
+                                deviceId: userInfo?.deviceId ?? 0,
+                                conversationId: parseInt(item.id),
+                                peerUserId: parseInt(item.id),
+                                peerDisplayName: item.name,
+                                peerAvatar: null,
+                            });
+                        }}
                     />
                 );
             case 'profile':
@@ -339,6 +351,7 @@ const AppNavigator: React.FC = () => {
                         peerDisplayName={screen.peerDisplayName}
                         peerAvatar={screen.peerAvatar}
                         onGoBack={handleGoBack}
+                        onAboutUser={(name, avatar) => setScreen({ name: 'about_user', userName: name, userAvatar: avatar })}
                     />
                 );
             case 'create_pin':
@@ -363,22 +376,31 @@ const AppNavigator: React.FC = () => {
                 );
             case 'select_contact':
                 return (
-                    <SelectContactScreen
+                    <ContactPickerScreen
+                        title="Select Contact"
+                        showActions={true}
+                        onBack={goBack}
+                        onNewGroup={() => navigateTo({ name: 'select_member' })}
                         navigation={{
-                            goBack: goBack,
                             navigate: (to: string) => {
                                 if (to === 'FindByUsername') navigateTo({ name: 'find_by_username' });
                                 if (to === 'FindByPhoneNumber') navigateTo({ name: 'find_by_phone' });
                             }
                         }}
-                        onNewGroup={() => navigateTo({ name: 'select_member' })}
                     />
                 );
             case 'select_member':
                 return (
-                    <SelectMemberScreen
+                    <ContactPickerScreen
+                        title="Select Members"
+                        multiSelect={true}
+                        showActions={true}
+                        onBack={goBack}
+                        onContinue={(selectedIds) => {
+                            console.log('Continue with members:', selectedIds);
+                            // navigateTo({ name: 'next_screen' });
+                        }}
                         navigation={{
-                            goBack: goBack,
                             navigate: (to: string) => {
                                 if (to === 'FindByUsername') navigateTo({ name: 'find_by_username' });
                                 if (to === 'FindByPhoneNumber') navigateTo({ name: 'find_by_phone' });
@@ -388,7 +410,8 @@ const AppNavigator: React.FC = () => {
                 );
             case 'find_by_username':
                 return (
-                    <FindByUsernameScreen
+                    <FindUserScreen
+                        mode="username"
                         onBack={goBack}
                         onContinue={(username) => {
                             console.log('Finding username:', username);
@@ -398,7 +421,8 @@ const AppNavigator: React.FC = () => {
                 );
             case 'find_by_phone':
                 return (
-                    <FindByPhoneNumberScreen
+                    <FindUserScreen
+                        mode="phone"
                         onBack={goBack}
                         onContinue={(phone) => {
                             console.log('Finding phone:', phone);
@@ -411,6 +435,16 @@ const AppNavigator: React.FC = () => {
                     <CallMenu onTabPress={(key) => {
                         if (key === 'chat') goBack();
                     }} />
+                );
+            case 'about_user':
+                return (
+                    <AboutUserScreen
+                        user={{
+                            name: screen.userName,
+                            avatar: screen.userAvatar,
+                        }}
+                        onBack={goBack}
+                    />
                 );
             default:
                 return null;

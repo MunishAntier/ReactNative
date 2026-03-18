@@ -239,18 +239,18 @@ const styles = StyleSheet.create({
         backgroundColor: '#0a0a0f',
     },
     header: {
+        width: '100%',
+        height: 50,
+        marginTop: 60,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 56,
-        paddingBottom: 16,
+        paddingHorizontal: 24,
         borderBottomWidth: 1,
         borderBottomColor: '#1a1a2e',
     },
     headerTitle: {
         fontSize: 28,
-        fontWeight: '700',
         color: '#ffffff',
     },
     headerActions: {
@@ -311,7 +311,6 @@ const styles = StyleSheet.create({
     },
     newChatSendText: {
         color: '#fff',
-        fontWeight: '600',
     },
     newChatClose: {
         padding: 8,
@@ -341,7 +340,6 @@ const styles = StyleSheet.create({
     avatarText: {
         color: '#6c63ff',
         fontSize: 20,
-        fontWeight: '700',
     },
     conversationInfo: {
         flex: 1,
@@ -354,7 +352,6 @@ const styles = StyleSheet.create({
     },
     peerName: {
         fontSize: 16,
-        fontWeight: '600',
         color: '#ffffff',
         flex: 1,
         marginRight: 8,
@@ -385,7 +382,6 @@ const styles = StyleSheet.create({
     unreadText: {
         color: '#fff',
         fontSize: 12,
-        fontWeight: '700',
     },
     empty: {
         flex: 1,
@@ -402,7 +398,6 @@ const styles = StyleSheet.create({
     },
     emptyTitle: {
         fontSize: 18,
-        fontWeight: '600',
         color: '#ccc',
         marginBottom: 8,
     },

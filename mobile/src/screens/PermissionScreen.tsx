@@ -156,9 +156,8 @@ const styles = StyleSheet.create({
     },
 
     title: {
-        fontFamily: 'ClashDisplay-Bold',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 32,
-        fontWeight: '600',
         color: '#070707',
         marginBottom: 12,
         letterSpacing: -0.5,
@@ -169,7 +168,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#606060',
         lineHeight: 20,
-        fontWeight: '400',
     },
 
     list: {
@@ -233,7 +231,6 @@ const styles = StyleSheet.create({
     tileTitle: {
         fontFamily: 'ClashDisplay-Regular',
         fontSize: 20,
-        fontWeight: '400',
         color: '#070707',
     },
 
@@ -265,9 +262,8 @@ const styles = StyleSheet.create({
     },
 
     notNowText: {
-        fontFamily: 'ClashDisplay-Medium',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 16,
-        fontWeight: '500',
         color: '#070707',
         textDecorationLine: 'underline',
     },
@@ -283,10 +279,9 @@ const styles = StyleSheet.create({
     },
 
     continueButtonText: {
-        fontFamily: 'ClashDisplay-Bold',
+        fontFamily: 'ClashDisplay-Regular',
         color: '#FCFDFD',
         fontSize: 17,
-        fontWeight: '600',
         textAlign: 'center',
     },
 });

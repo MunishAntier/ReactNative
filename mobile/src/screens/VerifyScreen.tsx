@@ -250,8 +250,7 @@ const styles = StyleSheet.create({
     },
 
     heroPhone: {
-        fontFamily: 'ClashDisplay-Bold',
-        fontWeight: '700',
+        fontFamily: 'ClashDisplay-Regular',
         color: '#FFFFFF',
     },
 
@@ -267,7 +266,7 @@ const styles = StyleSheet.create({
     autoDetectPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        alignSelf: 'flex-start',
+        alignSelf: 'center',
         backgroundColor: '#F5F7FF',
         borderRadius: 88,
         borderWidth: 1,
@@ -279,9 +278,8 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     autoDetectText: {
-        fontFamily: 'Gilroy-Medium',
+        fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         color: '#0230F9',
         lineHeight: 16 * 1.4,
         letterSpacing: 0,
@@ -290,7 +288,7 @@ const styles = StyleSheet.create({
     // OTP row
     otpRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
         gap: 16,
     },
     otpBox: {
@@ -300,9 +298,8 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1,
         borderColor: '#E2E6EE',
-        fontFamily: 'ClashDisplay-Bold',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 22,
-        fontWeight: '600',
         color: '#111111',
         textAlign: 'center',
     },
@@ -329,7 +326,6 @@ const styles = StyleSheet.create({
     errorText: {
         fontFamily: 'ClashDisplay-Regular',
         fontSize: 13,
-        fontWeight: '400',
         color: '#E03737',
     },
 
@@ -340,13 +336,11 @@ const styles = StyleSheet.create({
     resendLabel: {
         fontFamily: 'ClashDisplay-Regular',
         fontSize: 14,
-        fontWeight: '400',
         color: '#555555',
     },
 
     resendTimer: {
-        fontFamily: 'ClashDisplay-Bold',
-        fontWeight: '700',
+        fontFamily: 'ClashDisplay-Regular',
         color: '#111111',
     },
     homeIndicator: {

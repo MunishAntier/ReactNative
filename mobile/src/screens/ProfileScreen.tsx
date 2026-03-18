@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
     backButtonText: {
         color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: '600',
     },
     scroll: {
         flex: 1,
@@ -230,14 +229,12 @@ const styles = StyleSheet.create({
     placeholderText: {
         fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         color: '#606060',
         letterSpacing: 0,
     },
     placeholderAsterisk: {
         fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         color: '#FF4B55',
         letterSpacing: 0,
     },
@@ -249,7 +246,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         fontFamily: 'Gilroy-Regular',
         fontSize: 16,
-        fontWeight: '400',
         letterSpacing: 0,
         backgroundColor: '#E4E9EC',
         color: '#606060',
@@ -258,7 +254,7 @@ const styles = StyleSheet.create({
         marginTop: 24,
     },
     whoTitle: {
-        fontFamily: 'ClashDisplay-Medium',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 30,
         color: '#070707',
         lineHeight: 30,
@@ -285,7 +281,6 @@ const styles = StyleSheet.create({
     checkTick: {
         color: '#0230F9',
         fontSize: 14,
-        fontWeight: '700',
         lineHeight: 16,
     },
     checkboxEmpty: {

@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     input: {
-        fontFamily: 'ClashDisplay-Medium',
+        fontFamily: 'ClashDisplay-Regular',
         fontSize: 18,
         color: '#111111',
         padding: 0,

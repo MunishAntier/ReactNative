@@ -158,7 +158,6 @@ const styles = StyleSheet.create({
     activePillLabel: {
         fontFamily: 'Clash Display',
         fontSize: 12,
-        fontWeight: '400',
         lineHeight: 12,
         letterSpacing: 0.1,
         color: C.white,

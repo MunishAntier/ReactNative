@@ -228,7 +228,6 @@ const styles = StyleSheet.create({
 
     triggerText: {
         fontSize: 16,
-        fontWeight: '400',
         color: '#111',
     },
 

@@ -16,8 +16,8 @@ const BASE_SCREEN_HEIGHT = 932;
 
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
-    clashMedium: 'ClashDisplay-Medium',
-    gilroyMedium: 'Gilroy-Medium',
+    clashMedium: 'ClashDisplay-Regular',
+    gilroyMedium: 'ClashDisplay-Regular',
 };
 
 const SecretScreen: React.FC = () => {
@@ -186,7 +186,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#606060',
         fontFamily: FONT_FAMILIES.clashRegular,
-        fontWeight: '400',
         fontSize: 16,
         lineHeight: 24,
     },
@@ -214,7 +213,6 @@ const styles = StyleSheet.create({
     statusText: {
         color: '#34C759',
         fontFamily: FONT_FAMILIES.gilroyMedium,
-        fontWeight: '400',
     },
 });
 

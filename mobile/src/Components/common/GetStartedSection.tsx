@@ -109,14 +109,12 @@ const styles = StyleSheet.create({
     getStartedTitle: {
         fontFamily: 'Clash Display',
         fontSize: 22,
-        fontWeight: '500',
         color: C.blue,
         lineHeight: 44.11,
     },
     skipText: {
-        fontFamily: 'Gilroy-Medium',
+        fontFamily: 'Gilroy-Regular',
         fontSize: 14,
-        fontWeight: '400',
         color: C.black,
         textDecorationLine: 'underline',
         lineHeight: 14,
@@ -151,7 +149,6 @@ const styles = StyleSheet.create({
     tileLabel: {
         fontFamily: 'Clash Display',
         fontSize: 16,
-        fontWeight: '500',
         color: C.black,
         width: '90%',
         lineHeight: 20,

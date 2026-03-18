@@ -68,7 +68,6 @@ const callTileStyles = StyleSheet.create({
     },
     text: {
         fontSize: 16,
-        fontWeight: '500',
         color: C.dark,
     },
     iconBox: {
@@ -182,8 +181,8 @@ const styles = StyleSheet.create({
     greetRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     avatar: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#D0D0D0' },
     greetText: { gap: 1 },
-    greetName: { fontSize: 15, fontWeight: '700', color: C.dark },
-    greetSub: { fontSize: 12, fontWeight: '500', color: C.subtitleBlue },
+    greetName: { fontSize: 15, color: C.dark },
+    greetSub: { fontSize: 12, color: C.subtitleBlue },
     navActions: { flexDirection: 'row', gap: 8 },
     navIconBtn: {
         width: 36, height: 36, borderRadius: 10, backgroundColor: C.white,

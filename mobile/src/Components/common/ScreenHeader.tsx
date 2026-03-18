@@ -17,20 +17,14 @@ interface Props {
 }
 
 const ScreenHeader: React.FC<Props> = ({ title, onBack, rightComponent }) => {
-    const insets = useSafeAreaInsets();
-
     return (
-        <View style={[
-            styles.header,
-            {
-                paddingTop: Math.max(insets.top, 20),
-                paddingBottom: 15,
-            }
-        ]}>
-            <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-                <BackArrow color="#070707" size={24} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+        <View style={styles.header}>
+            <View style={styles.headerLeft}>
+                <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+                    <BackArrow color="#070707" size={24} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+            </View>
             {rightComponent ? (
                 <View style={styles.rightSide}>{rightComponent}</View>
             ) : (
@@ -42,23 +36,29 @@ const ScreenHeader: React.FC<Props> = ({ title, onBack, rightComponent }) => {
 
 const styles = StyleSheet.create({
     header: {
+        width: '100%',
+        height: 50,
+        marginTop: 60, // Consistent with ChatScreen refinement
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
         justifyContent: 'space-between',
+        paddingHorizontal: 24, // Consistent with ChatScreen refinement
         backgroundColor: '#EBEBEC',
     },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
     backBtn: {
-        padding: 4,
+        paddingRight: 10,
     },
     headerTitle: {
         fontSize: 20,
-        fontWeight: '400',
-        color: '#070707',
-        flex: 1,
-        marginLeft: 12,
+        color: '#111111',
         fontFamily: 'Gilroy-Regular',
         lineHeight: 20,
+        fontWeight: '400',
     },
     rightSide: {
         minWidth: 40,

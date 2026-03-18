@@ -40,10 +40,10 @@ const BASE_SCREEN_HEIGHT = 932;
 const STATUS_BAR_OFFSET = 20; // approximate iOS notch height in Figma base
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
-    clashMedium: 'ClashDisplay-Medium',
-    clashBold: 'ClashDisplay-Bold',
+    clashMedium: 'ClashDisplay-Regular',
+    clashBold: 'ClashDisplay-Regular',
     gilroyRegular: 'Gilroy-Regular',
-    gilroyMedium: 'Gilroy-Medium',
+    gilroyMedium: 'Gilroy-Regular',
 };
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile, onContinue }) => {
@@ -377,7 +377,6 @@ const styles = StyleSheet.create({
     primaryButtonText: {
         color: '#FCFDFD',
         fontFamily: FONT_FAMILIES.clashRegular,
-        fontWeight: '400',
         lineHeight: 18,
         textAlign: 'center',
     },
@@ -393,7 +392,6 @@ const styles = StyleSheet.create({
     secondaryButtonText: {
         color: '#070707',
         fontFamily: FONT_FAMILIES.clashRegular,
-        fontWeight: '400',
         lineHeight: 18,
         textAlign: 'center',
     },
@@ -402,7 +400,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#070707',
     },
     authHeader: {
-        paddingTop: 56,
+        marginTop: 60,
         paddingHorizontal: 24,
         paddingBottom: 16,
     },
@@ -418,7 +416,6 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: FONT_FAMILIES.clashBold,
         fontSize: 28,
-        fontWeight: '700',
         color: '#ffffff',
         marginBottom: 8,
     },
@@ -433,7 +430,6 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: FONT_FAMILIES.clashMedium,
         fontSize: 14,
-        fontWeight: '600',
         color: '#ccc',
         marginBottom: 4,
     },
@@ -467,7 +463,6 @@ const styles = StyleSheet.create({
         fontFamily: FONT_FAMILIES.clashBold,
         color: '#ffffff',
         fontSize: 16,
-        fontWeight: '600',
     },
     backButton: {
         alignItems: 'center',
@@ -490,7 +485,6 @@ const styles = StyleSheet.create({
     },
     devOtpText: {
         color: '#ffd700',
-        fontWeight: '700',
         fontSize: 16,
         letterSpacing: 3,
     },
