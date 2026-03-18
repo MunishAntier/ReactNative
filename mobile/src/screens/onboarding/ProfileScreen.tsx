@@ -8,8 +8,8 @@ import {
     Image,
     TouchableOpacity,
 } from 'react-native';
-import HeroSection from '../components/common/HeroSection';
-import FooterSection from '../components/common/FooterSection';
+import HeroSection from '../../components/common/HeroSection';
+import FooterSection from '../../components/common/FooterSection';
 
 interface ProfileScreenProps {
     onGoBack: () => void;
@@ -32,7 +32,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
                 <HeroSection
                     title="Set up your profile"
                     subtitle="Profiles are visible to people you message contacts, and groups."
-                    imageSource={require('../assets/images/profile_setup_top.png')}
+                    imageSource={require('../../assets/images/profile_setup_top.png')}
                     onBack={onGoBack}
                 />
             </View>
@@ -47,14 +47,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
                         <View style={styles.avatarContainer}>
                             <View style={styles.avatarBg}>
                                 <Image
-                                    source={require('../assets/images/profile_avatar.png')}
+                                    source={require('../../assets/images/profile_avatar.png')}
                                     style={styles.avatarImage}
                                     resizeMode="cover"
                                 />
                             </View>
                             <TouchableOpacity style={styles.avatarBadge} onPress={onEditAvatar} activeOpacity={0.7}>
                                 <Image
-                                    source={require('../assets/images/profile_avatar_badge.png')}
+                                    source={require('../../assets/images/profile_avatar_badge.png')}
                                     style={styles.avatarBadgeIcon}
                                     resizeMode="contain"
                                 />

@@ -9,7 +9,7 @@ import {
     RefreshControl,
     Alert,
 } from 'react-native';
-import { loadConversations as loadStoredConversations, upsertConversation } from '../services/localChatStore';
+// import { loadConversations as loadStoredConversations, upsertConversation } from '../services/localChatStore';
 
 export interface ConversationItem {
     conversation_id: number;
@@ -52,29 +52,29 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
         return rawName;
     }, []);
 
-    const loadConversations = useCallback(async () => {
-        const stored = await loadStoredConversations(userId);
-        setConversations(
-            stored.map(c => ({
-                conversation_id: c.conversationId,
-                peer_user_id: c.peerUserId,
-                peer_display_name: c.peerDisplayName,
-                peer_avatar: c.peerAvatar ?? null,
-                last_message_at: c.lastMessageAt,
-                unread_count: c.unreadCount,
-            })),
-        );
-    }, [userId]);
+    // const loadConversations = useCallback(async () => {
+    //     const stored = await loadStoredConversations(userId);
+    //     setConversations(
+    //         stored.map(c => ({
+    //             conversation_id: c.conversationId,
+    //             peer_user_id: c.peerUserId,
+    //             peer_display_name: c.peerDisplayName,
+    //             peer_avatar: c.peerAvatar ?? null,
+    //             last_message_at: c.lastMessageAt,
+    //             unread_count: c.unreadCount,
+    //         })),
+    //     );
+    // }, [userId]);
 
-    useEffect(() => {
-        loadConversations();
-    }, [loadConversations]);
+    // useEffect(() => {
+    //     loadConversations();
+    // }, [loadConversations]);
 
-    const onRefresh = async () => {
-        setRefreshing(true);
-        await loadConversations();
-        setRefreshing(false);
-    };
+    // const onRefresh = async () => {
+    //     setRefreshing(true);
+    //     await loadConversations();
+    //     setRefreshing(false);
+    // };
 
     const handleNewChat = async () => {
         const email = newChatEmail.trim();
@@ -92,16 +92,16 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
         const conversationId = Date.now();
         const peerDisplayName = getPeerDisplayName(peerUserId, email);
         
-        await upsertConversation(userId, {
-            conversationId,
-            peerUserId,
-            peerDisplayName,
-            peerAvatar: null,
-            lastMessageAt: new Date().toISOString(),
-            unreadCount: 0,
-        });
+        // await upsertConversation(userId, {
+        //     conversationId,
+        //     peerUserId,
+        //     peerDisplayName,
+        //     peerAvatar: null,
+        //     lastMessageAt: new Date().toISOString(),
+        //     unreadCount: 0,
+        // });
         
-        await loadConversations();
+        // await loadConversations();
         onSelectConversation(conversationId, peerUserId, { peerDisplayName, peerAvatar: null });
     };
 
@@ -217,7 +217,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
-                        onRefresh={onRefresh}
+                        // onRefresh={onRefresh}
                         tintColor="#6c63ff"
                         colors={['#6c63ff']}
                     />

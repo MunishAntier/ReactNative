@@ -1,6 +1,6 @@
 import { call, put, takeLatest } from 'redux-saga/effects';
 import { PayloadAction } from '@reduxjs/toolkit';
-import { submitKycRequest, submitKycSuccess, submitKycFailure } from '../slices/kycSlice';
+import { submitKycRequest, submitKycSuccess, submitKycFailure } from '../slices/registerSlice';
 
 // Mock API Call
 const apiSubmitKyc = (data: any) => {

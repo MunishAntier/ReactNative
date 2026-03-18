@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RESULTS } from 'react-native-permissions';
-import { permissionManager } from '../services/PermissionManager';
-import { MANDATORY_PERMISSIONS, PERMISSION_LABELS } from '../constants/PermissionConfig';
+import { permissionManager } from '../../services/PermissionManager';
+import { MANDATORY_PERMISSIONS, PERMISSION_LABELS } from '../../constants/PermissionConfig';
 
 interface Props {
     onFinished: () => void;

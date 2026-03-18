@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "SecureMsg",
-    "slug": "securemsg",
+    "name": "InvestChat",
+    "slug": "investchat",
     "version": "1.0.0",
     "ios": {
       "bundleIdentifier": "com.securemsg"

@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Svg, Path } from 'react-native-svg';
-import BottomNavBar, { TabKey } from '../components/common/BottomNavBar';
-import GetStartedSection from '../components/common/GetStartedSection';
+import BottomNavBar, { TabKey } from '../../components/common/BottomNavBar';
+import GetStartedSection from '../../components/common/GetStartedSection';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const AVATAR = require('../assets/images/avatar.png');
+const AVATAR = require('../../assets/images/avatar.png');
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const MOCK_CHATS = [
@@ -188,11 +188,12 @@ interface Props {
     onTabPress?: (key: string) => void;
     onGetStartedItem?: (key: string) => void;
     onChatPress?: (item: typeof MOCK_CHATS[0]) => void;
+    onAvatarPress?: () => void;
 }
 
 const HomeScreen: React.FC<Props> = ({
     userName = 'Good Morning!',
-    userSubtitle = 'Invest Chat',
+    userSubtitle = 'InvestChat',
     onSearch,
     onShield,
     onMore,
@@ -201,6 +202,7 @@ const HomeScreen: React.FC<Props> = ({
     onTabPress,
     onGetStartedItem,
     onChatPress,
+    onAvatarPress,
 }) => {
     const [searchText, setSearchText] = useState('');
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
@@ -225,7 +227,9 @@ const HomeScreen: React.FC<Props> = ({
                 {/* ── TOP NAV ── */}
                 <View style={styles.topNav}>
                     <View style={styles.greetRow}>
-                        <Image source={AVATAR} style={styles.avatar} />
+                        <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
+                            <Image source={AVATAR} style={styles.avatar} />
+                        </TouchableOpacity>
                         <View style={styles.greetText}>
                             <Text style={styles.greetName}>{userName}</Text>
                             <Text style={styles.greetSub}>{userSubtitle}</Text>
@@ -295,7 +299,7 @@ const HomeScreen: React.FC<Props> = ({
                     {/* Get Started Section - Conditional */}
                     {!hasChats && (
                         <GetStartedSection
-                            onItemPress={(key) => onGetStartedItem?.(key)}
+                            onItemPress={(key: string) => onGetStartedItem?.(key)}
                             onSkip={handleSkip}
                         />
                     )}

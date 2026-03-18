@@ -3,31 +3,31 @@ import { StatusBar, AppState, AppStateStatus, ActivityIndicator, View } from 're
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { loadTokens } from '../services/api';
-import { loadUserInfo, logout } from '../services/auth';
-import { websocket } from '../services/websocket';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../store/rootReducer';
+import { logout } from '../store/slices/authSlice';
 import { permissionManager } from '../services/PermissionManager';
 import * as SignalManager from '../crypto/SignalManager';
 
 // Screens
-import SplashScreen from '../screens/SplashScreen';
-import LoginScreen from '../screens/LoginScreen';
-import ConversationsScreen from '../screens/ConversationsScreen';
-import type { ConversationPeerMeta } from '../screens/ConversationsScreen';
-import ChatScreen from '../screens/ChatScreen';
-import SecretScreen from '../screens/SecretScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import CharacterScreen from '../screens/CharacterScreen';
-import PermissionScreen from '../screens/PermissionScreen';
-import VerifyScreen from '../screens/VerifyScreen';
-import CreatePINScreen from '../screens/CreatePINScreen';
-import ConfirmPINScreen from '../screens/ConfirmPINScreen';
-import PhoneScreen from '../screens/PhoneScreen';
-import HomeScreen from '../screens/HomeScreen';
-import CallMenu from '../screens/CallMenu';
-import ContactPickerScreen from '../screens/ContactPickerScreen';
-import FindUserScreen from '../screens/FindUserScreen';
-import AboutUserScreen from '../screens/AboutUserScreen';
+import SplashScreen from '../screens/onboarding/SplashScreen';
+import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
+import ConversationsScreen from '../screens/home/ConversationsScreen';
+import type { ConversationPeerMeta } from '../screens/home/ConversationsScreen';
+import ChatScreen from '../screens/home/ChatScreen';
+import SecretScreen from '../screens/onboarding/SecretScreen';
+import ProfileScreen from '../screens/onboarding/ProfileScreen';
+import CharacterScreen from '../screens/onboarding/CharacterScreen';
+import PermissionScreen from '../screens/onboarding/PermissionScreen';
+import VerifyScreen from '../screens/onboarding/VerifyScreen';
+import CreatePINScreen from '../screens/onboarding/CreatePINScreen';
+import ConfirmPINScreen from '../screens/onboarding/ConfirmPINScreen';
+import PhoneScreen from '../screens/onboarding/PhoneScreen';
+import HomeScreen from '../screens/home/HomeScreen';
+import CallMenu from '../screens/home/CallMenu';
+import ContactPickerScreen from '../screens/home/ContactPickerScreen';
+import FindUserScreen from '../screens/home/FindUserScreen';
+import AboutUserScreen from '../screens/home/AboutUserScreen';
 
 type Screen =
     | { name: 'loading' }
@@ -90,32 +90,16 @@ const AppNavigator: React.FC = () => {
         }
     }, [history]);
 
+    const dispatch = useDispatch();
+    const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
     const checkAppStatus = useCallback(async () => {
-        try {
-            const tokens = await loadTokens();
-            if (tokens?.accessToken) {
-                const userInfo = await loadUserInfo();
-                const userId = userInfo?.userId ?? 0;
-                const deviceId = userInfo?.deviceId ?? 0;
-
-                try {
-                    await SignalManager.initialize(userId);
-                } catch (err) {
-                    console.error("Signal Init Failed", err);
-                }
-
-                setScreen({ name: 'home' });
-                if (websocket && websocket.connect) {
-                    websocket.connect(userId);
-                }
-            } else {
-                setScreen({ name: 'login' });
-            }
-        } catch (err) {
-            console.error("App Status Check Failed", err);
+        if (isAuthenticated && user) {
+            setScreen({ name: 'home' });
+        } else {
             setScreen({ name: 'login' });
         }
-    }, []);
+    }, [isAuthenticated, user]);
 
     useEffect(() => {
         if (fontsLoaded) {
@@ -137,31 +121,19 @@ const AppNavigator: React.FC = () => {
 
     const handleLoginSuccess = useCallback(async (userId: number, deviceId: number) => {
         setScreen({ name: 'home' });
-        if (websocket && websocket.connect) {
-            websocket.connect(userId);
-        }
     }, []);
 
     const handleShowSecret = useCallback((userId: number, deviceId: number) => {
         setScreen({ name: 'secret', userId, deviceId });
         setTimeout(() => {
             setScreen({ name: 'home' });
-            if (websocket && websocket.connect) {
-                websocket.connect(userId);
-            }
         }, 3000);
     }, []);
 
     const handleLogout = useCallback(async () => {
-        if (websocket && websocket.disconnect) {
-            websocket.disconnect();
-        }
-        await logout();
-        if (screen.name === 'conversations' || screen.name === 'chat' || screen.name === 'secret') {
-            await SignalManager.clearAll();
-        }
+        dispatch(logout());
         setScreen({ name: 'login' });
-    }, [screen]);
+    }, [dispatch]);
 
     const handleGoToProfile = useCallback(() => {
         setScreen({ name: 'profile' });
@@ -244,7 +216,7 @@ const AppNavigator: React.FC = () => {
                 return <PermissionScreen onFinished={() => setScreen({ name: 'phone' })} />;
             case 'login':
                 return (
-                    <LoginScreen
+                    <WelcomeScreen
                         onLoginSuccess={handleLoginSuccess}
                         onShowSecret={handleShowSecret}
                         onGoToProfile={handleGoToProfile}
@@ -298,11 +270,10 @@ const AppNavigator: React.FC = () => {
                             if (key === 'group') navigateTo({ name: 'select_member' });
                         }}
                         onChatPress={async (item) => {
-                            const userInfo = await loadUserInfo();
                             navigateTo({
                                 name: 'chat',
-                                userId: userInfo?.userId ?? 0,
-                                deviceId: userInfo?.deviceId ?? 0,
+                                userId: user?.id ?? 0,
+                                deviceId: 0,
                                 conversationId: parseInt(item.id),
                                 peerUserId: parseInt(item.id),
                                 peerDisplayName: item.name,
@@ -313,10 +284,10 @@ const AppNavigator: React.FC = () => {
                     />
                 );
             case 'profile':
-                return <ProfileScreen 
-                    onGoBack={() => setScreen({ name: 'login' })} 
-                    onSave={() => setScreen({ name: 'create_pin' })} 
-                    onEditAvatar={handleGoToCharacter} 
+                return <ProfileScreen
+                    onGoBack={() => setScreen({ name: 'login' })}
+                    onSave={() => setScreen({ name: 'create_pin' })}
+                    onEditAvatar={handleGoToCharacter}
                 />;
             case 'character':
                 return <CharacterScreen onClose={handleCloseCharacter} />;

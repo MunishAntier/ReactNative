@@ -10,10 +10,10 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import CustomToggle from '../components/common/CustomToggle';
+import CustomToggle from '../../components/common/CustomToggle';
 import { Modal, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
-import BlueArrowIcon from '../assets/icons/BlueArrowIcon';
+import BlueArrowIcon from '../../assets/icons/BlueArrowIcon';
 
 interface Props {
     user: {
@@ -57,7 +57,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
 
                 <View style={styles.heroContent}>
                     <Image
-                        source={user.avatar || require('../assets/images/avatar.png')}
+                        source={user.avatar || require('../../assets/images/avatar.png')}
                         style={styles.avatar}
                     />
                     <Text style={styles.userName}>{user.name}</Text>

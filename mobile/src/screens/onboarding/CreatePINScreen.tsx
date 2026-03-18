@@ -10,9 +10,9 @@ import {
     StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import HeroSection from '../components/common/HeroSection';
-import FooterSection from '../components/common/FooterSection';
-import CustomToggle from '../components/common/CustomToggle';
+import HeroSection from '../../components/common/HeroSection';
+import FooterSection from '../../components/common/FooterSection';
+import CustomToggle from '../../components/common/CustomToggle';
 
 interface Props {
     onBack?: () => void;

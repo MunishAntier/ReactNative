@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
-import ScreenHeader from '../components/common/ScreenHeader';
-import FooterSection from '../components/common/FooterSection';
+import ScreenHeader from '../../components/common/ScreenHeader';
+import FooterSection from '../../components/common/FooterSection';
 
 // -- Constants --
 const C = {
