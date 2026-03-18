@@ -7,8 +7,8 @@ import {
     ScrollView,
     Image,
 } from 'react-native';
-import HeroSection from '../Components/common/HeroSection';
-import FooterSection from '../Components/common/FooterSectioon';
+import HeroSection from '../components/common/HeroSection';
+import FooterSection from '../components/common/FooterSection';
 import { TouchableOpacity } from 'react-native';
 
 interface ProfileScreenProps {

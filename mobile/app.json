@@ -1,6 +1,4 @@
 {
-  "name": "SecureMsg",
-  "displayName": "SecureMsg",
   "expo": {
     "name": "SecureMsg",
     "slug": "securemsg",
