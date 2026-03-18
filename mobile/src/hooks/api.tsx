@@ -1,7 +1,15 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+/**
+ * API Hook
+ *
+ * Handles all HTTP requests for the app.
+ * Session tokens (access_token, refresh_token, user) are stored securely
+ * in the OS Keychain (iOS) / Keystore (Android) via react-native-keychain.
+ */
+import Keychain from 'react-native-keychain';
 import { Alert } from 'react-native';
 
-// Simplified interfaces based on current project needs
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export interface RequestOptions {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -16,47 +24,101 @@ export interface RequestConfig {
   responseType?: 'json' | 'blob';
 }
 
-const BASE_URL = process.env.BASE_API_URL
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const notifyError = (title: string, message: string) => {
+const BASE_URL = process.env.BASE_API_URL;
+
+const SESSION_SERVICE = 'securemsg_session';
+
+const KEYCHAIN_OPTIONS: Keychain.Options = {
+  accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+  service: SESSION_SERVICE,
+};
+
+// ─── Secure Session Storage ───────────────────────────────────────────────────
+
+/**
+ * Saves a session value securely in the OS Keychain / Keystore.
+ * @param key   Identifier (e.g. 'access_token')
+ * @param value Value to store
+ */
+export const saveSessionItem = async (key: string, value: string): Promise<void> => {
+  try {
+    await Keychain.setGenericPassword(key, value, {
+      ...KEYCHAIN_OPTIONS,
+      service: `${SESSION_SERVICE}_${key}`,
+    });
+  } catch (e) {
+    console.warn(`[API] Failed to save ${key} to Keychain:`, e);
+  }
+};
+
+/**
+ * Reads a session value from the OS Keychain / Keystore.
+ * Returns null if not found.
+ */
+export const getSessionItem = async (key: string): Promise<string | null> => {
+  try {
+    const result = await Keychain.getGenericPassword({
+      service: `${SESSION_SERVICE}_${key}`,
+    });
+    if (result && typeof result === 'object' && 'password' in result) {
+      return result.password;
+    }
+  } catch (e) {
+    console.warn(`[API] Failed to read ${key} from Keychain:`, e);
+  }
+  return null;
+};
+
+/**
+ * Removes all session tokens from the Keychain / Keystore on logout.
+ */
+export const removeSession = async (): Promise<void> => {
+  const keys = ['access_token', 'refresh_token', 'user'];
+  await Promise.all(
+    keys.map(key =>
+      Keychain.resetGenericPassword({
+        service: `${SESSION_SERVICE}_${key}`,
+      }).catch(e => console.warn(`[API] Failed to remove ${key} from Keychain:`, e)),
+    ),
+  );
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const notifyError = (title: string, message: string): void => {
   Alert.alert(title, message);
 };
 
-const removeSession = async () => {
-  await Promise.all([
-    AsyncStorage.removeItem('access_token'),
-    AsyncStorage.removeItem('refresh_token'),
-    AsyncStorage.removeItem('user'),
-  ]);
-  // Handle logout navigation or state change here if needed
+const messagesMap: Record<string, string> = {
+  // Add user-facing message overrides here as needed
 };
 
-const messagesMap: Record<string, string> = {
-  // Add mapping as needed
-};
+// ─── Core Request ─────────────────────────────────────────────────────────────
 
 const makeRequest = async (
   options: RequestOptions,
   config: RequestConfig = {},
   baseUrl?: string,
 ) => {
-  const isExternal = options.url.startsWith("http");
+  const isExternal = options.url.startsWith('http');
   const defaultConfig: RequestConfig = isExternal
-    ? { headers: {}, credentials: config.credentials || "omit" }
+    ? { headers: {}, credentials: config.credentials || 'omit' }
     : {
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         } as Record<string, string>,
-        credentials: "include",
+        credentials: 'include',
       };
 
+  // Remove Content-Type for binary bodies so multipart boundary is auto-set
   if (
     options.body instanceof FormData ||
-    options.body instanceof Blob ||
-    options.body instanceof File
+    options.body instanceof Blob
   ) {
     if (defaultConfig.headers) {
-      delete defaultConfig.headers["Content-Type"];
+      delete defaultConfig.headers['Content-Type'];
     }
   }
 
@@ -69,10 +131,14 @@ const makeRequest = async (
     },
   };
 
-  // Use the provided baseUrl or fall back to DEFAULT_API_URL
-  const apiBaseUrl = baseUrl || BASE_URL;
+  // Attach access token from Keychain if available
+  const accessToken = await getSessionItem('access_token');
+  if (accessToken && mergedConfig.headers) {
+    mergedConfig.headers['Authorization'] = `Bearer ${accessToken}`;
+  }
 
-  const fullUrl = options.url.startsWith("http")
+  const apiBaseUrl = baseUrl || BASE_URL;
+  const fullUrl = options.url.startsWith('http')
     ? options.url
     : `${apiBaseUrl}${options.url}`;
 
@@ -92,95 +158,62 @@ const makeRequest = async (
     let errorData: any;
     try {
       errorData = await response.json();
-    } catch (e) {
+    } catch {
       errorData = { message: `Request failed with status ${response.status}` };
     }
 
-    if (errorData?.message === "authz.invalid_session") {
-      notifyError("Error", "Session has expired.");
+    if (errorData?.message === 'authz.invalid_session') {
+      notifyError('Error', 'Session has expired.');
       await removeSession();
     } else if (
       !Array.isArray(errorData?.message) &&
-      errorData?.message?.startsWith("authz.restrict")
+      errorData?.message?.startsWith('authz.restrict')
     ) {
-      notifyError("Error", "Access denied.");
-    } else if (errorData?.message === "authz.invalid_permission") {
-      notifyError("Error", "Permission denied");
+      notifyError('Error', 'Access denied.');
+    } else if (errorData?.message === 'authz.invalid_permission') {
+      notifyError('Error', 'Permission denied.');
     }
+
     throw errorData;
   }
 
-  if (config.responseType === "blob") {
+  if (config.responseType === 'blob') {
     return response;
   }
 
-  const contentType = response.headers.get("content-type");
-  if (!contentType || !contentType.includes("application/json")) {
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
     return { success: true, status: response.status };
   }
 
-  // Handle JSON responses
   const data = await response.json();
   data.message = messagesMap[data.message] || data.message;
   return data;
 };
 
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 export const API = {
   get: (config?: RequestConfig, baseUrl?: string) => async (url: string) =>
-    makeRequest(
-      {
-        method: "GET",
-        url,
-      },
-      config,
-      baseUrl,
-    ),
+    makeRequest({ method: 'GET', url }, config, baseUrl),
+
   post:
     (config?: RequestConfig, baseUrl?: string) =>
     async (url: string, body: any) =>
-      makeRequest(
-        {
-          method: "POST",
-          body,
-          url,
-        },
-        config,
-        baseUrl,
-      ),
+      makeRequest({ method: 'POST', body, url }, config, baseUrl),
+
   put:
     (config?: RequestConfig, baseUrl?: string) =>
     async (url: string, body: any) =>
-      makeRequest(
-        {
-          method: "PUT",
-          body,
-          url,
-        },
-        config,
-        baseUrl,
-      ),
+      makeRequest({ method: 'PUT', body, url }, config, baseUrl),
+
   delete:
     (config?: RequestConfig, baseUrl?: string) =>
     async (url: string, body: any) =>
-      makeRequest(
-        {
-          method: "DELETE",
-          body,
-          url,
-        },
-        config,
-        baseUrl,
-      ),
+      makeRequest({ method: 'DELETE', body, url }, config, baseUrl),
+
   patch:
     (config?: RequestConfig, baseUrl?: string) =>
     async (url: string, body: any) =>
-      makeRequest(
-        {
-          method: "PATCH",
-          body,
-          url,
-        },
-        config,
-        baseUrl,
-      ),
+      makeRequest({ method: 'PATCH', body, url }, config, baseUrl),
 };
