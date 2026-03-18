@@ -16,8 +16,8 @@ const BASE_SCREEN_HEIGHT = 932;
 
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
-    clashMedium: 'ClashDisplay-Regular',
-    gilroyMedium: 'ClashDisplay-Regular',
+    clashMedium: 'ClashDisplay-Medium',
+    gilroyMedium: 'Gilroy-Medium',
 };
 
 const SecretScreen: React.FC = () => {
@@ -32,7 +32,6 @@ const SecretScreen: React.FC = () => {
             <View style={styles.container}>
                 <View style={styles.spacerTop} />
 
-                {/* Concentric circles and key icon */}
                 <View
                     style={[
                         styles.circleWrapper,
@@ -43,20 +42,15 @@ const SecretScreen: React.FC = () => {
                         },
                     ]}
                 >
-                    {/* Outer green circle */}
                     <Image
                         source={require('../assets/images/secret_green_circle.png')}
                         style={styles.fullCircle}
                         resizeMode="contain"
                     />
 
-                    {/* Blue border ring */}
                     <View style={styles.blueBorderRing} />
-
-                    {/* White inner circle */}
                     <View style={styles.whiteCircle} />
 
-                    {/* Key icon */}
                     <View style={styles.keyIcon}>
                         <Svg width="100%" height="100%" viewBox="-2 -2 40 28">
                             <Circle cx="10" cy="10" r="7" stroke="#1E2A78" strokeWidth="2.5" fill="none" transform="rotate(-45, 18, 12)" />
@@ -67,7 +61,6 @@ const SecretScreen: React.FC = () => {
                     </View>
                 </View>
 
-                {/* Heading + body */}
                 <View style={styles.textBlock}>
                     <Text
                         style={[
@@ -97,7 +90,6 @@ const SecretScreen: React.FC = () => {
 
                 <View style={styles.spacerFlex} />
 
-                {/* End‑to‑End Encrypted pill */}
                 <View style={styles.statusWrapper}>
                     <View style={styles.statusPillOuter}>
                         <View style={styles.statusPillInner}>
@@ -217,4 +209,3 @@ const styles = StyleSheet.create({
 });
 
 export default SecretScreen;
-

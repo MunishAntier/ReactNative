@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import FooterSection from '../components/common/FooterSection';
+import FooterSection from '../Components/common/FooterSectioon';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 

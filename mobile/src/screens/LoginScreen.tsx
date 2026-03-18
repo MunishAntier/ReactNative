@@ -37,13 +37,14 @@ type Step = 'email' | 'otp';
 
 const BASE_SCREEN_WIDTH = 430;
 const BASE_SCREEN_HEIGHT = 932;
-const STATUS_BAR_OFFSET = 20; // approximate iOS notch height in Figma base
+const STATUS_BAR_OFFSET = 20;
+
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
-    clashMedium: 'ClashDisplay-Regular',
+    clashMedium: 'ClashDisplay-Medium',
     clashBold: 'ClashDisplay-Regular',
     gilroyRegular: 'Gilroy-Regular',
-    gilroyMedium: 'Gilroy-Regular',
+    gilroyMedium: 'Gilroy-Medium',
 };
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile, onContinue }) => {
@@ -82,7 +83,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
             }
             setStep('otp');
         } catch (err: any) {
-            Alert.alert('Error', err.message);
+            Alert.alert('Error', err.message || 'Failed to send OTP');
         } finally {
             setLoading(false);
         }
@@ -98,7 +99,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         try {
             const previousUserInfo = await loadUserInfo();
             const deviceUuid = await getOrCreateStableDeviceUuid(Platform.OS);
-            console.log('[DEBUG] Verify OTP:', { email: email.trim(), otp: otp.trim(), deviceUuid, platform: Platform.OS });
             const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
 
             const sameUserNewDevice =
@@ -125,24 +125,22 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                         if (currentSpkId === 0) {
                             await rotateSignedPreKey(res.user_id);
                             onShowSecret(res.user_id, res.device_id);
-                            return; // Stop here, onShowSecret will handle navigation
+                            return;
                         }
                     } catch { }
                     onLoginSuccess(res.user_id, res.device_id);
                 }
             } catch { }
         } catch (err: any) {
-            Alert.alert('Error', err.message);
+            Alert.alert('Error', err.message || 'Login failed');
         } finally {
             setLoading(false);
         }
     };
 
-    const topOffset = STATUS_BAR_OFFSET * hScale;
-
     const heroFrameStyle = {
-        height: 504 * hScale, // Reduced height further to maintain the white line position
-        top: (Platform.OS === 'ios' ? 64 : 32) * hScale, // Match HomeScreen's safe padding
+        height: 504 * hScale,
+        top: (Platform.OS === 'ios' ? 64 : 32) * hScale,
     };
 
     const lowerPanelStyle = {
@@ -159,7 +157,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
     const illustrationStyle = {
         width: 270.3709 * wScale,
         height: 280.9739 * hScale,
-        top: 435 * hScale, // Keep it overlapping the panel correctly
+        top: 435 * hScale,
         left: 79.81 * wScale,
     };
 
@@ -167,14 +165,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
         left: 24 * wScale,
         right: 24 * wScale,
         bottom: 40 * hScale,
+        gap: 10,
     };
 
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <StatusBar barStyle="light-content" backgroundColor="#070707" />
-            <View style={styles.container}>
+            <SafeAreaView style={styles.safeArea} edges={['top']}>
+                <StatusBar barStyle="light-content" backgroundColor="#070707" />
                 {!showForm && (
                     <View style={styles.screenRoot}>
                         <View style={[styles.heroFrame, heroFrameStyle]}>
@@ -233,6 +232,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                                         },
                                     ]}>
                                     Restore for transfer
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.profileLink}
+                                onPress={onGoToProfile}
+                                activeOpacity={0.7}>
+                                <Text
+                                    style={[
+                                        styles.profileLinkText,
+                                        {
+                                            fontSize: 16 * typeScale,
+                                        },
+                                    ]}>
+                                    Go to Profile
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -325,7 +339,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret,
                         </View>
                     </View>
                 )}
-            </View>
+            </SafeAreaView>
         </KeyboardAvoidingView>
     );
 };
@@ -365,11 +379,10 @@ const styles = StyleSheet.create({
     },
     ctaGroup: {
         position: 'absolute',
-        gap: 16,
     },
     primaryButton: {
         height: 56,
-        borderRadius: 16,
+        borderRadius: 12,
         backgroundColor: '#070707',
         alignItems: 'center',
         justifyContent: 'center',
@@ -382,7 +395,7 @@ const styles = StyleSheet.create({
     },
     secondaryButton: {
         height: 56,
-        borderRadius: 16,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: '#070707',
         backgroundColor: '#FCFDFD',
@@ -400,7 +413,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#070707',
     },
     authHeader: {
-        marginTop: 60,
         paddingHorizontal: 24,
         paddingBottom: 16,
     },
@@ -414,7 +426,7 @@ const styles = StyleSheet.create({
         marginBottom: 48,
     },
     title: {
-        fontFamily: FONT_FAMILIES.clashBold,
+        fontFamily: FONT_FAMILIES.clashMedium,
         fontSize: 28,
         color: '#ffffff',
         marginBottom: 8,
@@ -460,7 +472,8 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     buttonText: {
-        fontFamily: FONT_FAMILIES.clashBold,
+        fontFamily: FONT_FAMILIES.clashRegular,
+        fontWeight: '700',
         color: '#ffffff',
         fontSize: 16,
     },

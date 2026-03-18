@@ -99,6 +99,8 @@ pre_install do |installer|
       def pod.build_type; Pod::BuildType.static_library; end
     when 'AsyncStorage'
       def pod.build_type; Pod::BuildType.static_library; end
+    when 'RNDeviceInfo'
+      def pod.build_type; Pod::BuildType.static_library; end
     end
   end
 end

@@ -6,10 +6,10 @@ import {
     TextInput,
     ScrollView,
     Image,
+    TouchableOpacity,
 } from 'react-native';
 import HeroSection from '../components/common/HeroSection';
 import FooterSection from '../components/common/FooterSection';
-import { TouchableOpacity } from 'react-native';
 
 interface ProfileScreenProps {
     onGoBack: () => void;
@@ -23,7 +23,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
     const [everyoneOnChat, setEveryoneOnChat] = React.useState(true);
 
     const handleSave = () => {
-        // TODO: wire to backend when available
         onSave();
     };
 
@@ -124,19 +123,6 @@ const styles = StyleSheet.create({
     header: {
         position: 'relative',
     },
-    backButton: {
-        position: 'absolute',
-        top: 50,
-        left: 20,
-        zIndex: 10,
-        padding: 10,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 20,
-    },
-    backButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-    },
     scroll: {
         flex: 1,
     },
@@ -203,18 +189,6 @@ const styles = StyleSheet.create({
     inputSpacing: {
         marginTop: 8,
     },
-    fieldLabel: {
-        fontFamily: 'ClashDisplay-Regular',
-        fontSize: 14,
-        color: '#626262',
-        marginBottom: 6,
-    },
-    fieldLabelSpacing: {
-        marginTop: 14,
-    },
-    requiredMark: {
-        color: '#FF4B55',
-    },
     inputWrapper: {
         position: 'relative',
     },
@@ -254,7 +228,7 @@ const styles = StyleSheet.create({
         marginTop: 24,
     },
     whoTitle: {
-        fontFamily: 'ClashDisplay-Regular',
+        fontFamily: 'ClashDisplay-Medium',
         fontSize: 30,
         color: '#070707',
         lineHeight: 30,
@@ -281,6 +255,7 @@ const styles = StyleSheet.create({
     checkTick: {
         color: '#0230F9',
         fontSize: 14,
+        fontWeight: '700',
         lineHeight: 16,
     },
     checkboxEmpty: {
@@ -299,4 +274,3 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
-
