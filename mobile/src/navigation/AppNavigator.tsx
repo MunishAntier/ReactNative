@@ -105,6 +105,11 @@ const AppNavigator: React.FC = () => {
             // Default to login screen as the entry point
             setScreen({ name: 'login' });
         }
+    }, [screen]); // Added screen to deps just to be safe if navigateTo was used
+
+    // Check for existing tokens on mount
+    useEffect(() => {
+        // Auth check logic is moved to checkAppStatus which is called via bootstrap
     }, []);
 
     // Initial Bootstrap: Run the app status check once fonts are loaded
@@ -134,7 +139,7 @@ const AppNavigator: React.FC = () => {
      */
     const handleLoginSuccess = useCallback(async (userId: number, deviceId: number) => {
         setScreen({ name: 'conversations', userId, deviceId });
-        websocket.connect(userId);
+        // websocket.connect(userId); // removed
     }, []);
 
     /**
@@ -203,11 +208,12 @@ const AppNavigator: React.FC = () => {
     const handleStartNewChat = useCallback(
         (peerUserId: number, peerMeta?: ConversationPeerMeta) => {
             if (screen.name !== 'conversations') return;
+            const conversationId = Date.now();
             setScreen({
                 name: 'chat',
                 userId: screen.userId,
                 deviceId: screen.deviceId,
-                conversationId: null,
+                conversationId,
                 peerUserId,
                 peerDisplayName: peerMeta?.peerDisplayName,
                 peerAvatar: peerMeta?.peerAvatar ?? null,

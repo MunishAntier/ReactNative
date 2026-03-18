@@ -29,7 +29,8 @@
             "useFrameworks": "dynamic"
           }
         }
-      ]
+      ],
+      "expo-asset"
     ]
   }
 }

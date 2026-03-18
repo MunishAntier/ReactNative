@@ -1978,6 +1978,8 @@ PODS:
     - CryptoSwift (~> 1.8.4)
     - ExpoModulesCore
     - LibSignalClient
+  - RNDeviceInfo (15.0.2):
+    - React-Core
   - RNKeychain (10.0.0):
     - hermes-engine
     - RCTRequired
@@ -2208,6 +2210,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - ReactNativeLibsignalClient (from `../node_modules/react-native-libsignal-client/ios`)
+  - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - RNKeychain (from `../node_modules/react-native-keychain`)
   - RNPermissions (from `../node_modules/react-native-permissions`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -2401,6 +2404,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   ReactNativeLibsignalClient:
     :path: "../node_modules/react-native-libsignal-client/ios"
+  RNDeviceInfo:
+    :path: "../node_modules/react-native-device-info"
   RNKeychain:
     :path: "../node_modules/react-native-keychain"
   RNPermissions:
@@ -2509,6 +2514,7 @@ SPEC CHECKSUMS:
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
   ReactNativeDependencies: 467506c70254faa7fd035fd29395dc8c8db8ce29
   ReactNativeLibsignalClient: 5ad32b79def4489ea3bdfa15645cc1e566a95837
+  RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNKeychain: ce2cee63eab83888c3da68684da50b9c83c33461
   RNPermissions: 17e6b3f4259b7d62b19a99b5ef654d25488aad1d
   RNScreens: ca829379d20b0d1ff41a0b87bc37bdc50276cef5
