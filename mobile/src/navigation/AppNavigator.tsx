@@ -105,7 +105,7 @@ const AppNavigator: React.FC = () => {
             // Default to login screen as the entry point
             setScreen({ name: 'login' });
         }
-    }, [screen]); // Added screen to deps just to be safe if navigateTo was used
+    }, []); // Only run at boot
 
     // Check for existing tokens on mount
     useEffect(() => {
@@ -283,7 +283,10 @@ const AppNavigator: React.FC = () => {
                 return (
                     <CreatePINScreen
                         onBack={goBack}
-                        onContinue={(pin) => navigateTo({ name: 'confirm_pin', createdPin: pin })}
+                        onContinue={(pin) => {
+                            // Link directly to secret screen logic as per user request
+                            handleShowSecret(0, 0);
+                        }}
                     />
                 );
             case 'confirm_pin':

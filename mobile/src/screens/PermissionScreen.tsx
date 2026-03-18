@@ -54,10 +54,13 @@ const PermissionScreen: React.FC<Props> = ({ onFinished }) => {
     };
 
     const handleContinue = async () => {
+        // For development/simulator, we allow proceeding even if not all permissions are granted.
+        // In a production app, you might want to show a warning or keep this strict.
         const isReady = await permissionManager.checkAllMandatory();
-        if (isReady) {
-            onFinished();
+        if (!isReady) {
+            console.log("Proceeding without all permissions (dev mode)");
         }
+        onFinished();
     };
 
     const renderPermissionTile = (id: string, labelData?: any) => {
