@@ -65,9 +65,9 @@ type Screen =
 const AppNavigator: React.FC = () => {
     const [fontsLoaded] = useFonts({
         'ClashDisplay-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
-        'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Regular.otf'), // fallback to regular if medium is missing in assets
-        'ClashDisplay-Bold': require('../assets/fonts/ClashDisplay-Regular.otf'),
-        'Gilroy-Medium': require('../assets/fonts/ClashDisplay-Regular.otf'),
+        'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
+        'ClashDisplay-Bold': require('../assets/fonts/ClashDisplay-Bold.otf'),
+        'Gilroy-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
         'Gilroy-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
     });
 
@@ -102,10 +102,22 @@ const AppNavigator: React.FC = () => {
     }, [isAuthenticated, user]);
 
     useEffect(() => {
-        if (fontsLoaded) {
-            checkAppStatus();
+        // Log status for debugging
+        console.log('AppNavigator Status:', { fontsLoaded, screen: screen.name, isAuthenticated, user: !!user });
+        
+        // Ensure we move past loading screen if fonts are loaded OR if we've waited long enough
+        if (screen.name === 'loading') {
+            const timer = setTimeout(() => {
+                checkAppStatus();
+            }, 1000); // 1s fallback
+            
+            if (fontsLoaded) {
+                checkAppStatus();
+            }
+            
+            return () => clearTimeout(timer);
         }
-    }, [fontsLoaded, checkAppStatus]);
+    }, [fontsLoaded, screen.name, checkAppStatus, isAuthenticated, user]);
 
     useEffect(() => {
         const subscription = AppState.addEventListener('change', async (nextStatus: AppStateStatus) => {
@@ -202,7 +214,7 @@ const AppNavigator: React.FC = () => {
         );
     }
 
-    if (screen.name === 'loading' || !fontsLoaded) {
+    if (screen.name === 'loading') { // Remove fontsLoaded block to prevent hang
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0a0f' }}>
                 <ActivityIndicator size="large" color="#6c63ff" />

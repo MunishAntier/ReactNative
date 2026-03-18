@@ -76,5 +76,13 @@
 		<string>ClashDisplay-Regular.otf</string>
 		<string>ClashDisplay-Extralight.otf</string>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>Sync your contacts to find friends on InvestChat.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Needed to take photos for your profile and messages.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Needed to share photos from your library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Needed for secure voice calls.</string>
 </dict>
 </plist>

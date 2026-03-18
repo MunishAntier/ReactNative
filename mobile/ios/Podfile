@@ -78,6 +78,18 @@ target 'SecureMsg' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Fix JSI UUID toString: snprintf expects char* but std::string::data()
+    # returns const char* in C++11/14. Auto-reapplied after every pod install.
+    jsi_header = File.join(__dir__, 'Pods/Headers/Public/React-jsi/jsi/jsi.h')
+    if File.exist?(jsi_header)
+      content = File.read(jsi_header)
+      if content.include?('buffer.data(),') && !content.include?('const_cast<char*>(buffer.data())')
+        fixed = content.gsub('buffer.data(),', 'const_cast<char*>(buffer.data()),')
+        File.write(jsi_header, fixed)
+        puts "✅ Applied JSI UUID snprintf fix to #{jsi_header}"
+      end
+    end
   end
 end
 

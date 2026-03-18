@@ -36,7 +36,7 @@ const STATUS_BAR_OFFSET = 20;
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
     clashMedium: 'ClashDisplay-Medium',
-    clashBold: 'ClashDisplay-Regular',
+    clashBold: 'ClashDisplay-Bold',
     gilroyRegular: 'Gilroy-Regular',
     gilroyMedium: 'Gilroy-Medium',
 };
