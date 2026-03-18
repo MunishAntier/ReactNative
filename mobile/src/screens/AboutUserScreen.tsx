@@ -38,12 +38,6 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
         'Off',
     ];
 
-    const { height: windowHeight } = useWindowDimensions();
-    const itemHeight = 54; // Estimated height including padding and border
-    const calculatedHeroHeight = windowHeight - (6.4 * itemHeight);
-    // Ensure height doesn't get too small
-    const heroHeight = Math.max(calculatedHeroHeight, 280);
-
     const handleToggleDisappearing = (val: boolean) => {
         setDisappearingMessages(val);
         if (val) {
@@ -54,7 +48,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
     return (
         <View style={styles.container}>
             {/* Hero Section */}
-            <View style={[styles.hero, { height: heroHeight }]}>
+            <View style={styles.hero}>
                 <View style={styles.headerRow}>
                     <TouchableOpacity style={styles.backButton} onPress={onBack}>
                         <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -236,8 +230,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
     },
     hero: {
+        height: 322,
         backgroundColor: '#070707',
-        paddingTop: 60, 
+        paddingTop: 40,
+        overflow: 'hidden',
     },
     headerRow: {
         height: 50,
