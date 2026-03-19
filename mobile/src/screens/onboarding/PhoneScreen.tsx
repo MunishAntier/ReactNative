@@ -24,10 +24,10 @@ import {
     FlagType,
 } from 'react-native-country-picker-modal';
 
-import HeroSection from '../../Components/common/HeroSection';
-import FooterSection from '../../Components/common/FooterSection';
+import HeroSection from '../../components/common/HeroSection';
+import FooterSection from '../../components/common/FooterSection';
 
-import CountryPickerModal from '../../Components/common/CountryPickerModal';
+import CountryPickerModal from '../../components/common/CountryPickerModal';
 
 interface Props {
     onBack?: () => void;

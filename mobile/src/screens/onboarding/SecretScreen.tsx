@@ -43,7 +43,7 @@ const SecretScreen: React.FC = () => {
                     ]}
                 >
                     <Image
-                        source={require('../../Assets/images/secret_green_circle.png')}
+                        source={require('../../assets/images/secret_green_circle.png')}
                         style={styles.fullCircle}
                         resizeMode="contain"
                     />
@@ -94,7 +94,7 @@ const SecretScreen: React.FC = () => {
                     <View style={styles.statusPillOuter}>
                         <View style={styles.statusPillInner}>
                             <Image
-                                source={require('../../Assets/images/secret_check_circle.png')}
+                                source={require('../../assets/images/secret_check_circle.png')}
                                 style={styles.statusIcon}
                                 resizeMode="contain"
                             />

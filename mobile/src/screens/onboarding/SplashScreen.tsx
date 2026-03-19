@@ -30,7 +30,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
             <StatusBar barStyle="light-content" backgroundColor="#000000" />
             <Image
-                source={require('../../Assets/images/splash_cube_2.png')}
+                source={require('../../assets/images/splash_cube_2.png')}
                 style={styles.splashImage}
                 resizeMode="cover"
             />

@@ -5,7 +5,7 @@ import {
     TextInput,
     Text,
 } from 'react-native';
-import CommonInputScreen from '../../Components/common/CommonInputScreen';
+import CommonInputScreen from '../../components/common/CommonInputScreen';
 
 interface Props {
     onBack: () => void;
@@ -14,11 +14,11 @@ interface Props {
     initialLastName?: string;
 }
 
-const NicknameScreen: React.FC<Props> = ({ 
-    onBack, 
-    onContinue, 
-    initialFirstName = '', 
-    initialLastName = '' 
+const NicknameScreen: React.FC<Props> = ({
+    onBack,
+    onContinue,
+    initialFirstName = '',
+    initialLastName = ''
 }) => {
     const [firstName, setFirstName] = useState(initialFirstName);
     const [lastName, setLastName] = useState(initialLastName);
@@ -33,22 +33,22 @@ const NicknameScreen: React.FC<Props> = ({
             onBack={onBack}
             onContinue={handleContinue}
         >
-        <View style={styles.inputWrapper}>
-            {!firstName && (
-                <View style={styles.placeholderOverlay} pointerEvents="none">
-                    <Text style={styles.placeholderText}>First Name</Text>
-                    <Text style={styles.requiredAsterisk}>*</Text>
-                </View>
-            )}
-            <TextInput
-                placeholder=""
-                placeholderTextColor="#606060"
-                style={styles.textInput}
-                value={firstName}
-                onChangeText={setFirstName}
-                autoFocus
-            />
-        </View>
+            <View style={styles.inputWrapper}>
+                {!firstName && (
+                    <View style={styles.placeholderOverlay} pointerEvents="none">
+                        <Text style={styles.placeholderText}>First Name</Text>
+                        <Text style={styles.requiredAsterisk}>*</Text>
+                    </View>
+                )}
+                <TextInput
+                    placeholder=""
+                    placeholderTextColor="#606060"
+                    style={styles.textInput}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoFocus
+                />
+            </View>
 
             <View style={styles.inputWrapper}>
                 <TextInput

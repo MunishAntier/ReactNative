@@ -63,7 +63,7 @@ const FONT_FAMILIES = {
     clashMedium: 'ClashDisplay-Regular',
 };
 
-const DEFAULT_AVATAR = require('../../Assets/images/profile_avatar.png');
+const DEFAULT_AVATAR = require('../../assets/images/profile_avatar.png');
 
 function cacheKey(myUserId: number, peerUserId: number): string {
     const a = Math.min(myUserId, peerUserId);

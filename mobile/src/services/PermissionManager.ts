@@ -7,7 +7,7 @@ import {
     requestNotifications,
     openSettings
 } from 'react-native-permissions';
-import { MANDATORY_PERMISSIONS } from '../Constants/PermissionConfig';
+import { MANDATORY_PERMISSIONS } from '../constants/PermissionConfig';
 
 class PermissionManager {
     /**

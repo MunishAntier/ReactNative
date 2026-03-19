@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Svg, Path } from 'react-native-svg';
-import BottomNavBar, { TabKey } from '../../Components/common/BottomNavBar';
-import GetStartedSection from '../../Components/common/GetStartedSection';
+import BottomNavBar, { TabKey } from '../../components/common/BottomNavBar';
+import GetStartedSection from '../../components/common/GetStartedSection';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const AVATAR = require('../../Assets/images/avatar.png');
+const AVATAR = require('../../assets/images/avatar.png');
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const MOCK_CHATS = [

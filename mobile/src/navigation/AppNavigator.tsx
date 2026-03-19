@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/rootReducer';
 import { logout } from '../store/slices/authSlice';
-import { permissionManager } from '../Services/PermissionManager';
+import { permissionManager } from '../services/PermissionManager';
 import * as SignalManager from '../crypto/SignalManager';
 
 // Screens
@@ -73,11 +73,11 @@ type Screen =
 
 const AppNavigator: React.FC = () => {
     const [fontsLoaded] = useFonts({
-        'ClashDisplay-Regular': require('../Assets/fonts/ClashDisplay-Regular.otf'),
-        'ClashDisplay-Medium': require('../Assets/fonts/ClashDisplay-Medium.otf'),
-        'ClashDisplay-Bold': require('../Assets/fonts/ClashDisplay-Bold.otf'),
-        'Gilroy-Medium': require('../Assets/fonts/ClashDisplay-Medium.otf'),
-        'Gilroy-Regular': require('../Assets/fonts/ClashDisplay-Regular.otf'),
+        'ClashDisplay-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
+        'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
+        'ClashDisplay-Bold': require('../assets/fonts/ClashDisplay-Bold.otf'),
+        'Gilroy-Medium': require('../assets/fonts/ClashDisplay-Medium.otf'),
+        'Gilroy-Regular': require('../assets/fonts/ClashDisplay-Regular.otf'),
     });
 
     const [screen, setScreen] = useState<Screen>({ name: 'loading' });

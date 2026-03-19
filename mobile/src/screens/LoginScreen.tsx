@@ -20,7 +20,7 @@ import {
     verifyOTP,
     loadUserInfo,
     getOrCreateStableDeviceUuid,
-} from '../Services/auth';
+} from '../services/auth';
 import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
 import * as SignalManager from '../crypto/SignalManager';
 import { clearSignalStorage, getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';

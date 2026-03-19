@@ -10,10 +10,10 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import CustomToggle from '../../Components/common/CustomToggle';
+import CustomToggle from '../../components/common/CustomToggle';
 import { Modal, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
-import BlueArrowIcon from '../../Assets/icons/BlueArrowIcon';
+import BlueArrowIcon from '../../assets/icons/BlueArrowIcon';
 
 interface Props {
     user: {
@@ -59,7 +59,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack, onVerifyNumber, onNick
 
                 <View style={styles.heroContent}>
                     <Image
-                        source={user.avatar || require('../../Assets/images/avatar.png')}
+                        source={user.avatar || require('../../assets/images/avatar.png')}
                         style={styles.avatar}
                     />
                     <Text style={styles.userName}>{user.name}</Text>
@@ -143,7 +143,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack, onVerifyNumber, onNick
                     <BlueArrowIcon />
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.listItem}
                     onPress={onVerifyNumber}
                 >

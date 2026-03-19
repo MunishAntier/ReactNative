@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ScreenHeader from '../../Components/common/ScreenHeader';
+import ScreenHeader from '../../components/common/ScreenHeader';
 
 interface Props {
     userName: string;
@@ -29,7 +29,7 @@ const SafetyNumberScreen: React.FC<Props> = ({ userName, onBack }) => {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
             <ImageBackground
-                source={require('../../Assets/images/VerifyNumberBG.png')}
+                source={require('../../assets/images/VerifyNumberBG.png')}
                 style={styles.backgroundImage}
                 resizeMode="cover"
             >

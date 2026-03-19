@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginRequest } from '../../store/slices/authSlice';
 import { RootState } from '../../store/rootReducer';
-import BackArrow from '../../Components/common/BackArrow';
+import BackArrow from '../../components/common/BackArrow';
 
 interface WelcomeScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
@@ -124,7 +124,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
                     <View style={styles.screenRoot}>
                         <View style={[styles.heroFrame, heroFrameStyle]}>
                             <Image
-                                source={require('../../Assets/images/login_top_frame.png')}
+                                source={require('../../assets/images/login_top_frame.png')}
                                 style={StyleSheet.absoluteFillObject}
                                 resizeMode="cover"
                             />
@@ -132,14 +132,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
 
                         <View style={[styles.lowerPanel, lowerPanelStyle]}>
                             <Image
-                                source={require('../../Assets/images/login_dots.png')}
+                                source={require('../../assets/images/login_dots.png')}
                                 style={[styles.dotsFieldImage, dotsFieldStyle]}
                                 resizeMode="stretch"
                             />
                         </View>
 
                         <Image
-                            source={require('../../Assets/images/login_key.png')}
+                            source={require('../../assets/images/login_key.png')}
                             style={[styles.illustration, illustrationStyle]}
                             resizeMode="contain"
                         />

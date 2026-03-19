@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RESULTS } from 'react-native-permissions';
-import { permissionManager } from '../../Services/PermissionManager';
-import { MANDATORY_PERMISSIONS, PERMISSION_LABELS } from '../../Constants/PermissionConfig';
+import { permissionManager } from '../../services/PermissionManager';
+import { MANDATORY_PERMISSIONS, PERMISSION_LABELS } from '../../constants/PermissionConfig';
 
 interface Props {
     onFinished: () => void;
@@ -173,11 +173,11 @@ const PermissionScreen: React.FC<Props> = ({ onFinished, onBack }) => {
                     <Text style={styles.notNowText}>Not Now</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[
-                        styles.continueButton, 
+                        styles.continueButton,
                         !Object.values(statuses).every(s => s === RESULTS.GRANTED || s === RESULTS.LIMITED) && { backgroundColor: '#B5B5B5' }
-                    ]} 
+                    ]}
                     onPress={handleContinue}
                     disabled={!Object.values(statuses).every(s => s === RESULTS.GRANTED || s === RESULTS.LIMITED)}
                 >
