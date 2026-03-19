@@ -14,7 +14,6 @@ import {
     StatusBar,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginRequest } from '../../store/slices/authSlice';
 import { RootState } from '../../store/rootReducer';
@@ -41,7 +40,7 @@ const FONT_FAMILIES = {
     gilroyMedium: 'Gilroy-Medium',
 };
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile, onContinue }) => {
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({onContinue }) => {
     const insets = useSafeAreaInsets();
     const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
     const wScale = screenWidth / BASE_SCREEN_WIDTH;
@@ -86,11 +85,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
 
     const heroFrameStyle = {
         height: 504 * hScale,
-        top: (insets.top - 120) * hScale,
+        top: (insets.top - 80) * hScale,
     };
 
     const lowerPanelStyle = {
-        top: 380 * hScale,
+        top: 430 * hScale,
     };
 
     const dotsFieldStyle = {
@@ -103,7 +102,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
     const illustrationStyle = {
         width: 270.3709 * wScale,
         height: 280.9739 * hScale,
-        top: 330 * hScale,
+        top: 380 * hScale,
         left: 79.81 * wScale,
     };
 
@@ -178,21 +177,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
                                         },
                                     ]}>
                                     Restore for transfer
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.profileLink}
-                                onPress={onGoToProfile}
-                                activeOpacity={0.7}>
-                                <Text
-                                    style={[
-                                        styles.profileLinkText,
-                                        {
-                                            fontSize: 16 * typeScale,
-                                        },
-                                    ]}>
-                                    Go to Profile
                                 </Text>
                             </TouchableOpacity>
                         </View>

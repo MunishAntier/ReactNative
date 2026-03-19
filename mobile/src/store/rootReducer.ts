@@ -1,13 +1,17 @@
 import { combineReducers } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import profileReducer from './slices/profileSlice';
-import kycReducer from './slices/registerSlice';
+import registerReducer from './slices/registerSlice';
+import sendOtpReducer from './slices/sendOtpSlice';
+import verifyOtpReducer from './slices/verifyOtpSlice';
 
 const rootReducer = combineReducers({
     auth: authReducer,
     profile: profileReducer,
-    kyc: kycReducer,
-    // Add other 22 slice reducers here as they are created
+    register: registerReducer,
+    sendOtp: sendOtpReducer,
+    verifyOtp: verifyOtpReducer,
+    // Add other slice reducers here as they are created
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
