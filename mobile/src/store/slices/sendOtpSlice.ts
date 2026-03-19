@@ -2,28 +2,25 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface RegisterPayload {
+export interface SendOtpPayload {
     phone_number: string;
     device_id: string;
     device_type: string;
 }
 
-export interface RegisterResponse {
-    uid: string;
-    phone_number: string;
-    role: string;
-    status: string;
+export interface SendOtpResponse {
+    [key: string]: any;
 }
 
-interface RegisterState {
+interface SendOtpState {
     loading: boolean;
     error: string | null;
-    response: RegisterResponse | null;
+    response: SendOtpResponse | null;
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
-const initialState: RegisterState = {
+const initialState: SendOtpState = {
     loading: false,
     error: null,
     response: null,
@@ -31,27 +28,27 @@ const initialState: RegisterState = {
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
-const registerSlice = createSlice({
-    name: 'register',
+const sendOtpSlice = createSlice({
+    name: 'sendOtp',
     initialState,
     reducers: {
-        registerRequest: (state, _action: PayloadAction<RegisterPayload>) => {
+        sendOtpRequest: (state, _action: PayloadAction<SendOtpPayload>) => {
             state.loading = true;
             state.error = null;
             state.response = null;
         },
-        registerSuccess: (state, action: PayloadAction<RegisterResponse>) => {
+        sendOtpSuccess: (state, action: PayloadAction<SendOtpResponse>) => {
             state.loading = false;
             state.response = action.payload;
         },
-        registerFailure: (state, action: PayloadAction<string>) => {
+        sendOtpFailure: (state, action: PayloadAction<string>) => {
             state.loading = false;
             state.error = action.payload;
         },
-        registerReset: () => initialState,
+        sendOtpReset: () => initialState,
     },
 });
 
-export const { registerRequest, registerSuccess, registerFailure, registerReset } =
-    registerSlice.actions;
-export default registerSlice.reducer;
+export const { sendOtpRequest, sendOtpSuccess, sendOtpFailure, sendOtpReset } =
+    sendOtpSlice.actions;
+export default sendOtpSlice.reducer;
