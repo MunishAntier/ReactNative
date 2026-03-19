@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Svg, Path } from 'react-native-svg';
-import BottomNavBar, { TabKey } from '../../components/common/BottomNavBar';
+import BottomNavBar, { TabKey } from '../../Components/common/BottomNavBar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const AVATAR = require('../../assets/images/avatar.png');
+const AVATAR = require('../../Assets/images/avatar.png');
 const { width: SCREEN_W } = Dimensions.get('window');
 
 const C = {

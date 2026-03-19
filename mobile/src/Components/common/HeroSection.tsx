@@ -18,7 +18,7 @@ interface HeroSectionProps {
     height?: number;
 }
 
-const DEFAULT_HERO_IMAGE = require('../../assets/images/profile_setup_top.png');
+const DEFAULT_HERO_IMAGE = require('../../Assets/images/profile_setup_top.png');
 const DEFAULT_HEIGHT = 200;
 
 const HeroSection: React.FC<HeroSectionProps> = ({

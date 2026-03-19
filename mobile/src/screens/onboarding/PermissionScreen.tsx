@@ -10,20 +10,37 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RESULTS } from 'react-native-permissions';
-import { permissionManager } from '../../services/PermissionManager';
-import { MANDATORY_PERMISSIONS, PERMISSION_LABELS } from '../../constants/PermissionConfig';
+import { permissionManager } from '../../Services/PermissionManager';
+import { MANDATORY_PERMISSIONS, PERMISSION_LABELS } from '../../Constants/PermissionConfig';
 
 interface Props {
     onFinished: () => void;
+    onBack: () => void;
 }
 
-const PermissionScreen: React.FC<Props> = ({ onFinished }) => {
+const PermissionScreen: React.FC<Props> = ({ onFinished, onBack }) => {
     const [statuses, setStatuses] = useState<Record<string, any>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [hasStartedAuto, setHasStartedAuto] = useState(false);
 
     useEffect(() => {
-        refreshStatuses();
+        const init = async () => {
+            const initialStatuses = await refreshStatuses();
+            if (!hasStartedAuto) {
+                setHasStartedAuto(true);
+                startAutoSequence(initialStatuses);
+            }
+        };
+        init();
     }, []);
+
+    const getOrderedPermissions = () => {
+        const list = ['notifications', ...MANDATORY_PERMISSIONS];
+        if (Platform.OS === 'ios') {
+            return list.filter(p => p !== 'phone_calls'); // phone_calls is handled as GRANTED on iOS in refreshStatuses
+        }
+        return list;
+    };
 
     const refreshStatuses = async () => {
         const results: Record<string, any> = {};
@@ -40,16 +57,41 @@ const PermissionScreen: React.FC<Props> = ({ onFinished }) => {
 
         setStatuses(results);
         setIsLoading(false);
+        return results;
     };
 
-    const handleRequest = async (permission: any) => {
+    const startAutoSequence = async (currentStatuses: Record<string, any>) => {
+        const permissions = getOrderedPermissions();
+        for (const p of permissions) {
+            if (currentStatuses[p] !== RESULTS.GRANTED) {
+                await handleRequest(p, true);
+                break;
+            }
+        }
+    };
+
+    const handleRequest = async (permission: any, fromAuto = false) => {
         if (Platform.OS === 'ios' && permission === 'phone_calls') return;
 
         const result = await permissionManager.requestPermission(permission);
-        refreshStatuses();
+        const newStatuses = await refreshStatuses();
 
-        if (result === RESULTS.BLOCKED) {
+        if (result === RESULTS.BLOCKED && !fromAuto) {
             permissionManager.openSettings();
+        }
+
+        // If this was part of an auto-sequence or user clicked manually, 
+        // try to trigger the next one if the current one was handled
+        if (result === RESULTS.GRANTED || result === RESULTS.DENIED || result === RESULTS.LIMITED) {
+            const permissions = getOrderedPermissions();
+            const currentIndex = permissions.indexOf(permission);
+            if (currentIndex !== -1 && currentIndex < permissions.length - 1) {
+                const nextPermission = permissions[currentIndex + 1];
+                if (newStatuses[nextPermission] !== RESULTS.GRANTED) {
+                    // Small delay for smoother transition between modals
+                    setTimeout(() => handleRequest(nextPermission, true), 500);
+                }
+            }
         }
     };
 
@@ -64,7 +106,7 @@ const PermissionScreen: React.FC<Props> = ({ onFinished }) => {
         const label = labelData || PERMISSION_LABELS[id];
         if (!label) return null;
 
-        const isGranted = statuses[id] === RESULTS.GRANTED;
+        const isGranted = statuses[id] === RESULTS.GRANTED || statuses[id] === RESULTS.LIMITED;
 
         return (
             <View key={id} style={styles.tileWrapper}>
@@ -127,11 +169,18 @@ const PermissionScreen: React.FC<Props> = ({ onFinished }) => {
             </ScrollView>
 
             <View style={styles.footer}>
-                <TouchableOpacity style={styles.notNowBtn} disabled={true}>
+                <TouchableOpacity style={styles.notNowBtn} onPress={onBack}>
                     <Text style={styles.notNowText}>Not Now</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+                <TouchableOpacity 
+                    style={[
+                        styles.continueButton, 
+                        !Object.values(statuses).every(s => s === RESULTS.GRANTED || s === RESULTS.LIMITED) && { backgroundColor: '#B5B5B5' }
+                    ]} 
+                    onPress={handleContinue}
+                    disabled={!Object.values(statuses).every(s => s === RESULTS.GRANTED || s === RESULTS.LIMITED)}
+                >
                     <Text style={styles.continueButtonText}>Next</Text>
                 </TouchableOpacity>
             </View>

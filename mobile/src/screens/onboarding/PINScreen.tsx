@@ -4,29 +4,56 @@ import {
     Text,
     StyleSheet,
     TextInput,
-    Switch,
     KeyboardAvoidingView,
     Platform,
     StatusBar,
+    Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import HeroSection from '../../components/common/HeroSection';
-import FooterSection from '../../components/common/FooterSection';
-import CustomToggle from '../../components/common/CustomToggle';
+import HeroSection from '../../Components/common/HeroSection';
+import FooterSection from '../../Components/common/FooterSection';
+import CustomToggle from '../../Components/common/CustomToggle';
 
 interface Props {
     onBack?: () => void;
-    onContinue?: (pin: string, isAlphabet: boolean) => void;
+    onComplete?: (pin: string, isAlphabet: boolean) => void;
 }
 
-const ConfirmPINScreen: React.FC<Props> = ({ onBack, onContinue }) => {
+type PINStep = 'create' | 'confirm';
+
+const PINScreen: React.FC<Props> = ({ onBack, onComplete }) => {
+    const [step, setStep] = useState<PINStep>('create');
     const [pin, setPin] = useState('');
+    const [confirmPin, setConfirmPin] = useState('');
     const [isAlphabet, setIsAlphabet] = useState(false);
 
     const handleContinue = () => {
-        if (pin.length < 4) return;
-        onContinue?.(pin, isAlphabet);
+        if (step === 'create') {
+            if (pin.length < 4) {
+                Alert.alert('Invalid PIN', 'PIN must be at least 4 digits');
+                return;
+            }
+            setStep('confirm');
+        } else {
+            if (confirmPin !== pin) {
+                Alert.alert('Mismatch', 'PINs do not match. Please try again.');
+                setConfirmPin('');
+                return;
+            }
+            onComplete?.(pin, isAlphabet);
+        }
     };
+
+    const handleBack = () => {
+        if (step === 'confirm') {
+            setStep('create');
+            setConfirmPin('');
+        } else {
+            onBack?.();
+        }
+    };
+
+    const isCreate = step === 'create';
 
     return (
         <View style={styles.container}>
@@ -36,9 +63,12 @@ const ConfirmPINScreen: React.FC<Props> = ({ onBack, onContinue }) => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <HeroSection
-                    title="Confirm PIN"
-                    subtitle="Re-Enter the PIN you just created"
-                    onBack={onBack}
+                    title={isCreate ? "Create PIN" : "Confirm PIN"}
+                    subtitle={isCreate
+                        ? "PINs can help you restore your account and keep your info encrypted with us"
+                        : "Re-Enter the PIN you just created"
+                    }
+                    onBack={handleBack}
                 />
 
                 <View style={styles.body}>
@@ -46,12 +76,15 @@ const ConfirmPINScreen: React.FC<Props> = ({ onBack, onContinue }) => {
                     <View style={styles.inputContainer}>
                         <TextInput
                             style={styles.input}
-                            value={pin}
-                            onChangeText={setPin}
+                            value={isCreate ? pin : confirmPin}
+                            onChangeText={isCreate ? setPin : setConfirmPin}
+                            key={isAlphabet ? 'alphabet' : 'numeric'}
                             placeholder="····"
                             placeholderTextColor="#AAAAAA"
                             secureTextEntry={true}
                             keyboardType={isAlphabet ? 'default' : 'number-pad'}
+                            autoCapitalize="none"
+                            autoCorrect={false}
                             autoFocus
                         />
                     </View>
@@ -59,12 +92,17 @@ const ConfirmPINScreen: React.FC<Props> = ({ onBack, onContinue }) => {
                     {/* Info Message */}
                     <View style={styles.infoRow}>
                         <Ionicons name="information-circle-outline" size={18} color="#111111" />
-                        <Text style={styles.infoText}>PIN Must be at least 4 digits</Text>
+                        <Text style={styles.infoText}>
+                            {isAlphabet ? "PIN must be at least 4 digits and alphabets" : "PIN must be at least 4 digits"}
+                        </Text>
                     </View>
 
-                    {/* Toggle */}
+                    {/* Toggle - only show in create step or keep it visible? 
+                        Usually, it's chosen in the first step. */}
                     <View style={styles.toggleRow}>
-                        <Text style={styles.toggleLabel}>Create Alphabet PIN</Text>
+                        <Text style={styles.toggleLabel}>
+                            Create Alphabet PIN
+                        </Text>
                         <CustomToggle
                             value={isAlphabet}
                             onValueChange={setIsAlphabet}
@@ -73,8 +111,9 @@ const ConfirmPINScreen: React.FC<Props> = ({ onBack, onContinue }) => {
                 </View>
 
                 <FooterSection
-                    buttonTitle="Continue"
+                    buttonTitle={isCreate ? "Continue" : "Confirm"}
                     onButtonPress={handleContinue}
+                    disabled={isCreate ? pin.length < 4 : confirmPin.length < 4}
                 />
             </KeyboardAvoidingView>
         </View>
@@ -116,14 +155,14 @@ const styles = StyleSheet.create({
     infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: 205,
+        width: 300, // Increased to fit text
         height: 22,
         gap: 6,
         marginBottom: 24,
     },
     infoText: {
         fontFamily: 'Gilroy-Medium',
-        fontSize: 16,
+        fontSize: 14,
         lineHeight: 16 * 1.4,
         color: '#070707',
         letterSpacing: 0,
@@ -131,20 +170,18 @@ const styles = StyleSheet.create({
     toggleRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: 204,
-        height: 22,
-        borderRadius: 88,
-        gap: 20,
+        width: 204, // From Figma
+        height: 22, // From Figma
+        gap: 20, // From Figma
+        marginTop: 10,
     },
     toggleLabel: {
         fontFamily: 'Gilroy-Medium',
         fontSize: 16,
-        lineHeight: 16 * 1.4,
+        lineHeight: 22,
         color: '#0230F9',
-        width: 152,
-        height: 22,
         letterSpacing: 0,
     },
 });
 
-export default ConfirmPINScreen;
+export default PINScreen;

@@ -63,7 +63,7 @@ const FONT_FAMILIES = {
     clashMedium: 'ClashDisplay-Regular',
 };
 
-const DEFAULT_AVATAR = require('../../assets/images/profile_avatar.png');
+const DEFAULT_AVATAR = require('../../Assets/images/profile_avatar.png');
 
 function cacheKey(myUserId: number, peerUserId: number): string {
     const a = Math.min(myUserId, peerUserId);
@@ -573,8 +573,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                         <Ionicons name="arrow-back" size={24} color="#161616" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={styles.headerProfileTrigger} 
+                    <TouchableOpacity
+                        style={styles.headerProfileTrigger}
                         onPress={() => onAboutUser?.(displayName, avatarSource)}
                         activeOpacity={0.7}
                     >

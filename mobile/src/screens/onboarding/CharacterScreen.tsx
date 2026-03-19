@@ -11,22 +11,22 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import FooterSection from '../../components/common/FooterSection';
+import FooterSection from '../../Components/common/FooterSection';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const MAIN_AVATAR = require('../../assets/images/mainAvatar.png');
+const MAIN_AVATAR = require('../../Assets/images/mainAvatar.png');
 
 const AVATAR_SOURCES: ImageSourcePropType[] = [
-    require('../../assets/images/1.png'),
-    require('../../assets/images/2.png'),
-    require('../../assets/images/3.png'),
-    require('../../assets/images/4.png'),
-    require('../../assets/images/5.png'),
-    require('../../assets/images/6.png'),
-    require('../../assets/images/7.png'),
-    require('../../assets/images/8.png'),
-    require('../../assets/images/9.png'),
+    require('../../Assets/images/1.png'),
+    require('../../Assets/images/2.png'),
+    require('../../Assets/images/3.png'),
+    require('../../Assets/images/4.png'),
+    require('../../Assets/images/5.png'),
+    require('../../Assets/images/6.png'),
+    require('../../Assets/images/7.png'),
+    require('../../Assets/images/8.png'),
+    require('../../Assets/images/9.png'),
 ];
 
 const GRID_PADDING = 24;

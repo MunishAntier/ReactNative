@@ -15,12 +15,18 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useDispatch, useSelector } from 'react-redux';
-import { loginRequest } from '../../store/slices/authSlice';
-import { RootState } from '../../store/rootReducer';
-import BackArrow from '../../Components/common/BackArrow';
+import {
+    startAuth,
+    verifyOTP,
+    loadUserInfo,
+    getOrCreateStableDeviceUuid,
+} from '../Services/auth';
+import { generateAndUploadKeys, rotateSignedPreKey } from '../services/keys';
+import * as SignalManager from '../crypto/SignalManager';
+import { clearSignalStorage, getCurrentSignedPreKeyId } from '../crypto/SignalKeyStore';
+import BackArrow from '../components/common/BackArrow';
 
-interface WelcomeScreenProps {
+interface LoginScreenProps {
     onLoginSuccess: (userId: number, deviceId: number) => void;
     onShowSecret: (userId: number, deviceId: number) => void;
     onGoToProfile: () => void;
@@ -36,12 +42,12 @@ const STATUS_BAR_OFFSET = 20;
 const FONT_FAMILIES = {
     clashRegular: 'ClashDisplay-Regular',
     clashMedium: 'ClashDisplay-Medium',
-    clashBold: 'ClashDisplay-Bold',
+    clashBold: 'ClashDisplay-Regular',
     gilroyRegular: 'Gilroy-Regular',
     gilroyMedium: 'Gilroy-Medium',
 };
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile, onContinue }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onShowSecret, onGoToProfile, onContinue }) => {
     const insets = useSafeAreaInsets();
     const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
     const wScale = screenWidth / BASE_SCREEN_WIDTH;
@@ -52,9 +58,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [devOtp, setDevOtp] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
-    const dispatch = useDispatch();
-    const { loading: authLoading, error: authError } = useSelector((state: RootState) => state.auth);
 
     const handleSendOtp = async () => {
         const trimmedEmail = email.trim();
@@ -69,10 +74,19 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
             return;
         }
 
-        // Mock Step skip
-        setStep('otp');
-        setDevOtp('123456');
-        setOtp('123456');
+        setLoading(true);
+        try {
+            const res = await startAuth(trimmedEmail);
+            if (res.dev_otp) {
+                setDevOtp(res.dev_otp);
+                setOtp(res.dev_otp);
+            }
+            setStep('otp');
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to send OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleVerifyOtp = async () => {
@@ -81,16 +95,56 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
             return;
         }
 
-        dispatch(loginRequest({ identifier: email.trim() }));
+        setLoading(true);
+        try {
+            const previousUserInfo = await loadUserInfo();
+            const deviceUuid = await getOrCreateStableDeviceUuid(Platform.OS);
+            const res = await verifyOTP(email.trim(), otp.trim(), deviceUuid, Platform.OS);
+
+            const sameUserNewDevice =
+                previousUserInfo?.userId === res.user_id &&
+                previousUserInfo.deviceId !== res.device_id;
+
+            if (sameUserNewDevice) {
+                try {
+                    await SignalManager.clearAll();
+                } catch { }
+                try {
+                    await clearSignalStorage(res.user_id);
+                } catch { }
+            }
+
+            try {
+                const isNewIdentity = await SignalManager.initialize(res.user_id);
+                if (isNewIdentity || sameUserNewDevice) {
+                    await generateAndUploadKeys(res.user_id, 100);
+                    onShowSecret(res.user_id, res.device_id);
+                } else {
+                    try {
+                        const currentSpkId = await getCurrentSignedPreKeyId(res.user_id);
+                        if (currentSpkId === 0) {
+                            await rotateSignedPreKey(res.user_id);
+                            onShowSecret(res.user_id, res.device_id);
+                            return;
+                        }
+                    } catch { }
+                    onLoginSuccess(res.user_id, res.device_id);
+                }
+            } catch { }
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const heroFrameStyle = {
         height: 504 * hScale,
-        top: (insets.top - 120) * hScale,
+        top: (Platform.OS === 'ios' ? 64 : 32) * hScale,
     };
 
     const lowerPanelStyle = {
-        top: 380 * hScale,
+        top: 550 * hScale,
     };
 
     const dotsFieldStyle = {
@@ -103,7 +157,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
     const illustrationStyle = {
         width: 270.3709 * wScale,
         height: 280.9739 * hScale,
-        top: 330 * hScale,
+        top: 435 * hScale,
         left: 79.81 * wScale,
     };
 
@@ -124,7 +178,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
                     <View style={styles.screenRoot}>
                         <View style={[styles.heroFrame, heroFrameStyle]}>
                             <Image
-                                source={require('../../Assets/images/login_top_frame.png')}
+                                source={require('../assets/images/login_top_frame.png')}
                                 style={StyleSheet.absoluteFillObject}
                                 resizeMode="cover"
                             />
@@ -132,14 +186,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
 
                         <View style={[styles.lowerPanel, lowerPanelStyle]}>
                             <Image
-                                source={require('../../Assets/images/login_dots.png')}
+                                source={require('../assets/images/login_dots.png')}
                                 style={[styles.dotsFieldImage, dotsFieldStyle]}
                                 resizeMode="stretch"
                             />
                         </View>
 
                         <Image
-                            source={require('../../Assets/images/login_key.png')}
+                            source={require('../assets/images/login_key.png')}
                             style={[styles.illustration, illustrationStyle]}
                             resizeMode="contain"
                         />
@@ -201,7 +255,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
 
                 {showForm && (
                     <View style={styles.authOverlay}>
-                        <View style={[styles.authHeader, { paddingTop: Math.max(insets.top, STATUS_BAR_OFFSET) }]}>
+                        <View style={[styles.authHeader, { paddingTop: Math.max(insets.top, 20) }]}>
                             <TouchableOpacity onPress={() => setShowForm(false)}>
                                 <Text style={styles.backButtonText}>← Back</Text>
                             </TouchableOpacity>
@@ -224,13 +278,13 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
                                         keyboardType="email-address"
                                         autoCapitalize="none"
                                         autoCorrect={false}
-                                        editable={!authLoading}
+                                        editable={!loading}
                                     />
                                     <TouchableOpacity
-                                        style={[styles.button, authLoading && styles.buttonDisabled]}
+                                        style={[styles.button, loading && styles.buttonDisabled]}
                                         onPress={handleSendOtp}
-                                        disabled={authLoading}>
-                                        {authLoading ? (
+                                        disabled={loading}>
+                                        {loading ? (
                                             <ActivityIndicator color="#fff" />
                                         ) : (
                                             <Text style={styles.buttonText}>Send OTP</Text>
@@ -256,13 +310,13 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onLoginSuccess, onShowSec
                                         onChangeText={setOtp}
                                         keyboardType="number-pad"
                                         maxLength={6}
-                                        editable={!authLoading}
+                                        editable={!loading}
                                     />
                                     <TouchableOpacity
-                                        style={[styles.button, authLoading && styles.buttonDisabled]}
+                                        style={[styles.button, loading && styles.buttonDisabled]}
                                         onPress={handleVerifyOtp}
-                                        disabled={authLoading}>
-                                        {authLoading ? (
+                                        disabled={loading}>
+                                        {loading ? (
                                             <ActivityIndicator color="#fff" />
                                         ) : (
                                             <Text style={styles.buttonText}>Verify & Login</Text>
@@ -322,7 +376,6 @@ const styles = StyleSheet.create({
     },
     illustration: {
         position: 'absolute',
-        zIndex: 5,
     },
     ctaGroup: {
         position: 'absolute',
@@ -459,4 +512,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default WelcomeScreen;
+export default LoginScreen;

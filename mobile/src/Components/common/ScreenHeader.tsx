@@ -14,16 +14,27 @@ interface Props {
     title: string;
     onBack: () => void;
     rightComponent?: React.ReactNode;
+    dark?: boolean;
+    backgroundColor?: string;
 }
 
-const ScreenHeader: React.FC<Props> = ({ title, onBack, rightComponent }) => {
+const ScreenHeader: React.FC<Props> = ({
+    title,
+    onBack,
+    rightComponent,
+    dark = false,
+    backgroundColor
+}) => {
+    const titleColor = dark ? '#FFFFFF' : '#111111';
+    const arrowColor = dark ? '#FFFFFF' : '#070707';
+
     return (
-        <View style={styles.header}>
+        <View style={[styles.header, backgroundColor ? { backgroundColor } : null]}>
             <View style={styles.headerLeft}>
                 <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-                    <BackArrow color="#070707" size={24} />
+                    <BackArrow color={arrowColor} size={24} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+                <Text style={[styles.headerTitle, { color: titleColor }]} numberOfLines={1}>{title}</Text>
             </View>
             {rightComponent ? (
                 <View style={styles.rightSide}>{rightComponent}</View>

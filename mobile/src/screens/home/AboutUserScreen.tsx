@@ -10,10 +10,10 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import CustomToggle from '../../components/common/CustomToggle';
+import CustomToggle from '../../Components/common/CustomToggle';
 import { Modal, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
-import BlueArrowIcon from '../../assets/icons/BlueArrowIcon';
+import BlueArrowIcon from '../../Assets/icons/BlueArrowIcon';
 
 interface Props {
     user: {
@@ -21,9 +21,11 @@ interface Props {
         avatar?: any;
     };
     onBack: () => void;
+    onVerifyNumber: () => void;
+    onNicknamePress: () => void;
 }
 
-const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
+const AboutUserScreen: React.FC<Props> = ({ user, onBack, onVerifyNumber, onNicknamePress }) => {
     const [disappearingMessages, setDisappearingMessages] = React.useState(false);
     const [showDisappearingModal, setShowDisappearingModal] = React.useState(false);
     const [selectedDuration, setSelectedDuration] = React.useState('Off');
@@ -57,7 +59,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
 
                 <View style={styles.heroContent}>
                     <Image
-                        source={user.avatar || require('../../assets/images/avatar.png')}
+                        source={user.avatar || require('../../Assets/images/avatar.png')}
                         style={styles.avatar}
                     />
                     <Text style={styles.userName}>{user.name}</Text>
@@ -93,9 +95,9 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
 
             {/* Settings List */}
             <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.listItem}
-                    onPress={() => disappearingMessages && setShowDisappearingModal(true)}
+                    onPress={() => handleToggleDisappearing(!disappearingMessages)}
                     activeOpacity={0.7}
                 >
                     <View style={styles.itemIconBox}>
@@ -109,13 +111,14 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
                         <CustomToggle
                             value={disappearingMessages}
                             onValueChange={handleToggleDisappearing}
+                            disabled={true}
                         />
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.listItem}
-                    onPress={() => {}}
+                    onPress={onNicknamePress}
                 >
                     <View style={styles.itemIconBox}>
                         <Ionicons name="pencil" size={20} color="#111111" />
@@ -140,7 +143,10 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
                     <BlueArrowIcon />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.listItem}>
+                <TouchableOpacity 
+                    style={styles.listItem}
+                    onPress={onVerifyNumber}
+                >
                     <View style={styles.itemIconBox}>
                         <MaterialCommunityIcons name="shield-outline" size={22} color="#111111" />
                     </View>
@@ -170,8 +176,8 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
                 animationType="fade"
                 onRequestClose={() => setShowDisappearingModal(false)}
             >
-                <Pressable 
-                    style={styles.modalOverlay} 
+                <Pressable
+                    style={styles.modalOverlay}
                     onPress={() => setShowDisappearingModal(false)}
                 >
                     <BlurView
@@ -181,7 +187,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
                     />
                     <Pressable style={styles.modalContent}>
                         <View style={styles.modalHandle} />
-                        
+
                         <View style={styles.modalHeader}>
                             <View style={styles.disappearingIconBox}>
                                 <MaterialCommunityIcons name="message-text-clock-outline" size={32} color="#FFFFFF" />
@@ -194,7 +200,7 @@ const AboutUserScreen: React.FC<Props> = ({ user, onBack }) => {
 
                         <View style={styles.durationList}>
                             {durations.map((duration) => (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     key={duration}
                                     style={styles.durationItem}
                                     onPress={() => {

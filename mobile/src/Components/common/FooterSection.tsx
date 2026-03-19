@@ -11,12 +11,14 @@ interface FooterSectionProps {
     buttonTitle: string;
     onButtonPress: () => void;
     children?: React.ReactNode;
+    disabled?: boolean;
 }
 
 const FooterSection: React.FC<FooterSectionProps> = ({
     buttonTitle,
     onButtonPress,
     children,
+    disabled = false,
 }) => {
     const insets = useSafeAreaInsets();
 
@@ -25,9 +27,10 @@ const FooterSection: React.FC<FooterSectionProps> = ({
             {children}
 
             <TouchableOpacity
-                style={styles.primaryBtn}
+                style={[styles.primaryBtn, disabled && { backgroundColor: '#B5B5B5' }]}
                 onPress={onButtonPress}
                 activeOpacity={0.85}
+                disabled={disabled}
             >
                 <Text style={styles.primaryBtnText}>{buttonTitle}</Text>
             </TouchableOpacity>
@@ -37,7 +40,7 @@ const FooterSection: React.FC<FooterSectionProps> = ({
 
 const styles = StyleSheet.create({
     footer: {
-        backgroundColor: '#F5F6F8',
+        backgroundColor: '#EBEBEC',
         paddingHorizontal: 24,
         paddingTop: 16,
         borderTopWidth: StyleSheet.hairlineWidth,

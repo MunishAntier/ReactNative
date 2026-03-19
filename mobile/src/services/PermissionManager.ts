@@ -1,13 +1,13 @@
-import { 
-    check, 
-    request, 
-    RESULTS, 
-    PermissionStatus, 
-    checkNotifications, 
+import {
+    check,
+    request,
+    RESULTS,
+    PermissionStatus,
+    checkNotifications,
     requestNotifications,
     openSettings
 } from 'react-native-permissions';
-import { MANDATORY_PERMISSIONS } from '../constants/PermissionConfig';
+import { MANDATORY_PERMISSIONS } from '../Constants/PermissionConfig';
 
 class PermissionManager {
     /**
@@ -17,7 +17,7 @@ class PermissionManager {
         // 1. Check Standard Permissions
         for (const permission of MANDATORY_PERMISSIONS) {
             const status = await check(permission);
-            if (status !== RESULTS.GRANTED) {
+            if (status !== RESULTS.GRANTED && status !== RESULTS.LIMITED) {
                 return false;
             }
         }
