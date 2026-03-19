@@ -5,7 +5,7 @@
  * Session tokens (access_token, refresh_token, user) are stored securely
  * in the OS Keychain (iOS) / Keystore (Android) via react-native-keychain.
  */
-import Keychain from 'react-native-keychain';
+import * as Keychain from 'react-native-keychain';
 import { Alert } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,11 +26,11 @@ export interface RequestConfig {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.BASE_API_URL;
+import type { SetOptions } from 'react-native-keychain';
 
 const SESSION_SERVICE = 'securemsg_session';
 
-const KEYCHAIN_OPTIONS: Keychain.Options = {
+const KEYCHAIN_OPTIONS: SetOptions = {
   accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
   service: SESSION_SERVICE,
 };
@@ -136,8 +136,7 @@ const makeRequest = async (
   if (accessToken && mergedConfig.headers) {
     mergedConfig.headers['Authorization'] = `Bearer ${accessToken}`;
   }
-
-  const apiBaseUrl = baseUrl || BASE_URL;
+  const apiBaseUrl = process.env.API_BASE_URL || 'https://api-chat.devnet.invest.net/api/v1/signal';
   const fullUrl = options.url.startsWith('http')
     ? options.url
     : `${apiBaseUrl}${options.url}`;

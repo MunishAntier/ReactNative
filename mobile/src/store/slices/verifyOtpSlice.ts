@@ -2,28 +2,28 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface RegisterPayload {
+export interface VerifyOtpPayload {
     phone_number: string;
+    verification_code: string;
     device_id: string;
     device_type: string;
+    device_token: string;
+    registration_id: string;
 }
 
-export interface RegisterResponse {
-    uid: string;
-    phone_number: string;
-    role: string;
-    status: string;
+export interface VerifyOtpResponse {
+    [key: string]: any;
 }
 
-interface RegisterState {
+interface VerifyOtpState {
     loading: boolean;
     error: string | null;
-    response: RegisterResponse | null;
+    response: VerifyOtpResponse | null;
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
-const initialState: RegisterState = {
+const initialState: VerifyOtpState = {
     loading: false,
     error: null,
     response: null,
@@ -31,27 +31,27 @@ const initialState: RegisterState = {
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
-const registerSlice = createSlice({
-    name: 'register',
+const verifyOtpSlice = createSlice({
+    name: 'verifyOtp',
     initialState,
     reducers: {
-        registerRequest: (state, _action: PayloadAction<RegisterPayload>) => {
+        verifyOtpRequest: (state, _action: PayloadAction<VerifyOtpPayload>) => {
             state.loading = true;
             state.error = null;
             state.response = null;
         },
-        registerSuccess: (state, action: PayloadAction<RegisterResponse>) => {
+        verifyOtpSuccess: (state, action: PayloadAction<VerifyOtpResponse>) => {
             state.loading = false;
             state.response = action.payload;
         },
-        registerFailure: (state, action: PayloadAction<string>) => {
+        verifyOtpFailure: (state, action: PayloadAction<string>) => {
             state.loading = false;
             state.error = action.payload;
         },
-        registerReset: () => initialState,
+        verifyOtpReset: () => initialState,
     },
 });
 
-export const { registerRequest, registerSuccess, registerFailure, registerReset } =
-    registerSlice.actions;
-export default registerSlice.reducer;
+export const { verifyOtpRequest, verifyOtpSuccess, verifyOtpFailure, verifyOtpReset } =
+    verifyOtpSlice.actions;
+export default verifyOtpSlice.reducer;

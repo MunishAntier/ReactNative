@@ -27,7 +27,7 @@ const FooterSection: React.FC<FooterSectionProps> = ({
             {children}
 
             <TouchableOpacity
-                style={[styles.primaryBtn, disabled && { backgroundColor: '#B5B5B5' }]}
+                style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled]}
                 onPress={onButtonPress}
                 activeOpacity={0.85}
                 disabled={disabled}
@@ -52,6 +52,9 @@ const styles = StyleSheet.create({
         height: 54,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    primaryBtnDisabled: {
+        opacity: 0.4,
     },
     primaryBtnText: {
         fontFamily: 'ClashDisplay-Regular',

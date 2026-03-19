@@ -13,7 +13,8 @@ const DEVICE_IDENTITY_SERVICE = 'securemsg_device_identity';
 
 export interface DeviceIdentity {
     hardwareDeviceId: string;
-    platform: 'ios' | 'android';
+    platform: 'ios' | 'android'; 
+    deviceType: string; // e.g. 'iOS', 'Android' — from DeviceInfo.getSystemName()
 }
 
 /**
@@ -35,12 +36,14 @@ export async function initDeviceIdentity(): Promise<DeviceIdentity> {
         // No cached identity — fall through to create one
     }
 
-    // Fetch the hardware device ID
+    // Fetch the hardware device ID and system name
     // getUniqueId() returns IDFV on iOS, Android ID on Android
+    // getSystemName() returns 'iOS' or 'Android'
     const hardwareDeviceId = await DeviceInfo.getUniqueId();
+    const deviceType = DeviceInfo.getSystemName(); // synchronous
     const platform = Platform.OS as 'ios' | 'android';
 
-    const identity: DeviceIdentity = { hardwareDeviceId, platform };
+    const identity: DeviceIdentity = { hardwareDeviceId, platform, deviceType };
 
     // Store in Keychain / Keystore
     await Keychain.setGenericPassword(
