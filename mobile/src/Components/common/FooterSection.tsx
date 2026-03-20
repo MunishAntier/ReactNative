@@ -40,7 +40,7 @@ const FooterSection: React.FC<FooterSectionProps> = ({
 
 const styles = StyleSheet.create({
     footer: {
-        backgroundColor: '#F5F6F8',
+        backgroundColor: '#EBEBEC',
         paddingHorizontal: 24,
         paddingTop: 16,
         borderTopWidth: StyleSheet.hairlineWidth,

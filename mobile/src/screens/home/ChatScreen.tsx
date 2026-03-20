@@ -573,8 +573,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                         <Ionicons name="arrow-back" size={24} color="#161616" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={styles.headerProfileTrigger} 
+                    <TouchableOpacity
+                        style={styles.headerProfileTrigger}
                         onPress={() => onAboutUser?.(displayName, avatarSource)}
                         activeOpacity={0.7}
                     >

@@ -4,9 +4,10 @@ import { TouchableOpacity, Animated, StyleSheet } from 'react-native';
 interface Props {
     value: boolean;
     onValueChange: (value: boolean) => void;
+    disabled?: boolean;
 }
 
-const CustomToggle: React.FC<Props> = ({ value, onValueChange }) => {
+const CustomToggle: React.FC<Props> = ({ value, onValueChange, disabled = false }) => {
     const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
 
     useEffect(() => {
@@ -36,8 +37,12 @@ const CustomToggle: React.FC<Props> = ({ value, onValueChange }) => {
         <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => onValueChange(!value)}
+            disabled={disabled}
         >
-            <Animated.View style={[styles.container, { backgroundColor }]}>
+            <Animated.View 
+                style={[styles.container, { backgroundColor }]}
+                pointerEvents={disabled ? 'none' : 'auto'}
+            >
                 <Animated.View
                     style={[
                         styles.thumb,

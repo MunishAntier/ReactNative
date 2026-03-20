@@ -20,22 +20,22 @@ import ProfileScreen from '../screens/onboarding/ProfileScreen';
 import CharacterScreen from '../screens/onboarding/CharacterScreen';
 import PermissionScreen from '../screens/onboarding/PermissionScreen';
 import VerifyScreen from '../screens/onboarding/VerifyScreen';
-import CreatePINScreen from '../screens/onboarding/CreatePINScreen';
-import ConfirmPINScreen from '../screens/onboarding/ConfirmPINScreen';
+import PINScreen from '../screens/onboarding/PINScreen';
 import PhoneScreen from '../screens/onboarding/PhoneScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import CallMenu from '../screens/home/CallMenu';
 import ContactPickerScreen from '../screens/home/ContactPickerScreen';
 import FindUserScreen from '../screens/home/FindUserScreen';
 import AboutUserScreen from '../screens/home/AboutUserScreen';
+import VerifyNumberScreen from '../screens/home/VerifyNumberScreen';
+import NicknameScreen from '../screens/home/NicknameScreen';
 
 type Screen =
     | { name: 'loading' }
     | { name: 'permissions' }
     | { name: 'phone' }
     | { name: 'verify'; phoneNumber: string }
-    | { name: 'create_pin' }
-    | { name: 'confirm_pin'; createdPin: string }
+    | { name: 'pin_setup' }
     | { name: 'home' }
     | { name: 'call_menu' }
     | { name: 'select_contact' }
@@ -60,6 +60,15 @@ type Screen =
         name: 'about_user';
         userName: string;
         userAvatar?: any;
+    }
+    | {
+        name: 'verify_number';
+        userName: string;
+    }
+    | {
+        name: 'nickname';
+        firstName: string;
+        lastName: string;
     };
 
 const AppNavigator: React.FC = () => {
@@ -104,72 +113,64 @@ const AppNavigator: React.FC = () => {
     useEffect(() => {
         // Log status for debugging
         console.log('AppNavigator Status:', { fontsLoaded, screen: screen.name, isAuthenticated, user: !!user });
-        
+
         // Ensure we move past loading screen if fonts are loaded OR if we've waited long enough
         if (screen.name === 'loading') {
             const timer = setTimeout(() => {
                 checkAppStatus();
             }, 1000); // 1s fallback
-            
+
             if (fontsLoaded) {
                 checkAppStatus();
             }
-            
+
             return () => clearTimeout(timer);
         }
     }, [fontsLoaded, screen.name, checkAppStatus, isAuthenticated, user]);
 
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', async (nextStatus: AppStateStatus) => {
-            if (nextStatus === 'active' && screen.name === 'permissions') {
-                const isHardwareReady = await permissionManager.checkAllMandatory();
-                if (isHardwareReady) {
-                    setScreen({ name: 'phone' });
-                }
-            }
-        });
-        return () => subscription.remove();
-    }, [screen.name]);
+    // Removed auto-navigation on permission grant via AppState
+    // User must now click "Next" manually in PermissionScreen
 
     const handleLoginSuccess = useCallback(async (userId: number, deviceId: number) => {
         setScreen({ name: 'home' });
     }, []);
 
     const handleShowSecret = useCallback((userId: number, deviceId: number) => {
-        setScreen({ name: 'secret', userId, deviceId });
+        navigateTo({ name: 'secret', userId, deviceId });
         setTimeout(() => {
-            setScreen({ name: 'home' });
+            goBack();
         }, 3000);
-    }, []);
+    }, [navigateTo, goBack]);
 
     const handleLogout = useCallback(async () => {
         dispatch(logout());
+        setHistory([]);
         setScreen({ name: 'login' });
     }, [dispatch]);
 
     const handleGoToProfile = useCallback(() => {
-        setScreen({ name: 'profile' });
-    }, []);
+        navigateTo({ name: 'profile' });
+    }, [navigateTo]);
 
     const handleGoBackFromProfile = useCallback(() => {
-        setScreen({ name: 'login' });
-    }, []);
+        goBack();
+    }, [goBack]);
 
     const handleGoToSecretFromProfile = useCallback(() => {
-        setScreen({ name: 'secret', userId: 0, deviceId: 0 });
-    }, []);
+        navigateTo({ name: 'secret', userId: 0, deviceId: 0 });
+    }, [navigateTo]);
 
     const handleGoToCharacter = useCallback(() => {
-        setScreen({ name: 'character' });
-    }, []);
+        navigateTo({ name: 'character' });
+    }, [navigateTo]);
 
     const handleCloseCharacter = useCallback(() => {
-        setScreen({ name: 'profile' });
-    }, []);
+        goBack();
+    }, [goBack]);
 
     const handleSelectConversation = useCallback(
         (conversationId: number, peerUserId: number, peerMeta?: ConversationPeerMeta) => {
-            setScreen({
+            navigateTo({
                 name: 'chat',
                 userId: 0, // Placeholder, will be fetched in chat screen if needed
                 deviceId: 0,
@@ -179,12 +180,12 @@ const AppNavigator: React.FC = () => {
                 peerAvatar: peerMeta?.peerAvatar ?? null,
             });
         },
-        [],
+        [navigateTo],
     );
 
     const handleStartNewChat = useCallback(
         (peerUserId: number, peerMeta?: ConversationPeerMeta) => {
-            setScreen({
+            navigateTo({
                 name: 'chat',
                 userId: 0,
                 deviceId: 0,
@@ -194,16 +195,12 @@ const AppNavigator: React.FC = () => {
                 peerAvatar: peerMeta?.peerAvatar ?? null,
             });
         },
-        [],
+        [navigateTo],
     );
 
     const handleGoBack = useCallback(() => {
-        if (screen.name === 'chat') {
-            setScreen({ name: 'home' });
-        } else {
-            goBack();
-        }
-    }, [screen, goBack]);
+        goBack();
+    }, [goBack]);
 
     if (showSplash) {
         return (
@@ -225,14 +222,19 @@ const AppNavigator: React.FC = () => {
     const renderScreen = () => {
         switch (screen.name) {
             case 'permissions':
-                return <PermissionScreen onFinished={() => setScreen({ name: 'phone' })} />;
+                return (
+                    <PermissionScreen
+                        onFinished={() => navigateTo({ name: 'phone' })}
+                        onBack={() => navigateTo({ name: 'login' })} // Using navigateTo here as requested by previous logic context, but could be goBack if applicable
+                    />
+                );
             case 'login':
                 return (
                     <WelcomeScreen
                         onLoginSuccess={handleLoginSuccess}
                         onShowSecret={handleShowSecret}
                         onGoToProfile={handleGoToProfile}
-                        onContinue={() => setScreen({ name: 'permissions' })}
+                        onContinue={() => navigateTo({ name: 'permissions' })}
                     />
                 );
             case 'phone':
@@ -246,27 +248,17 @@ const AppNavigator: React.FC = () => {
                 return (
                     <VerifyScreen
                         phoneNumber={screen.phoneNumber}
-                        onVerify={() => setScreen({ name: 'profile' })}
+                        onVerify={() => navigateTo({ name: 'profile' })}
                         onBack={goBack}
                     />
                 );
-            case 'create_pin':
+            case 'pin_setup':
                 return (
-                    <CreatePINScreen
+                    <PINScreen
                         onBack={goBack}
-                        onContinue={(pin) => navigateTo({ name: 'confirm_pin', createdPin: pin })}
-                    />
-                );
-            case 'confirm_pin':
-                return (
-                    <ConfirmPINScreen
-                        onBack={goBack}
-                        onContinue={(pin) => {
-                            if (pin === screen.createdPin) {
-                                navigateTo({ name: 'home' });
-                            } else {
-                                console.log('PINs do not match');
-                            }
+                        onComplete={(pin, isAlphabet) => {
+                            console.log('PIN Setup Complete:', pin, isAlphabet);
+                            navigateTo({ name: 'home' });
                         }}
                     />
                 );
@@ -275,7 +267,7 @@ const AppNavigator: React.FC = () => {
                     <HomeScreen
                         onTabPress={(key) => {
                             if (key === 'calls') navigateTo({ name: 'call_menu' });
-                            if (key === 'chats') setScreen({ name: 'conversations', userId: 0, deviceId: 0 });
+                            if (key === 'chats') navigateTo({ name: 'conversations', userId: 0, deviceId: 0 });
                         }}
                         onGetStartedItem={(key) => {
                             if (key === 'invite') navigateTo({ name: 'select_contact' });
@@ -297,8 +289,8 @@ const AppNavigator: React.FC = () => {
                 );
             case 'profile':
                 return <ProfileScreen
-                    onGoBack={() => setScreen({ name: 'login' })}
-                    onSave={() => setScreen({ name: 'create_pin' })}
+                    onGoBack={goBack}
+                    onSave={() => navigateTo({ name: 'pin_setup' })}
                     onEditAvatar={handleGoToCharacter}
                 />;
             case 'character':
@@ -324,7 +316,7 @@ const AppNavigator: React.FC = () => {
                         peerDisplayName={screen.peerDisplayName}
                         peerAvatar={screen.peerAvatar}
                         onGoBack={handleGoBack}
-                        onAboutUser={(name, avatar) => setScreen({ name: 'about_user', userName: name, userAvatar: avatar })}
+                        onAboutUser={(name, avatar) => navigateTo({ name: 'about_user', userName: name, userAvatar: avatar })}
                     />
                 );
             case 'select_contact':
@@ -396,6 +388,31 @@ const AppNavigator: React.FC = () => {
                             avatar: screen.userAvatar,
                         }}
                         onBack={goBack}
+                        onVerifyNumber={() => navigateTo({ name: 'verify_number', userName: screen.userName })}
+                        onNicknamePress={() => {
+                            const [firstName, ...lastNameParts] = screen.userName.split(' ');
+                            const lastName = lastNameParts.join(' ');
+                            navigateTo({ name: 'nickname', firstName, lastName });
+                        }}
+                    />
+                );
+            case 'verify_number':
+                return (
+                    <VerifyNumberScreen
+                        userName={screen.userName}
+                        onBack={goBack}
+                    />
+                );
+            case 'nickname':
+                return (
+                    <NicknameScreen
+                        onBack={goBack}
+                        initialFirstName={screen.firstName}
+                        initialLastName={screen.lastName}
+                        onContinue={(fn, ln) => {
+                            console.log('New Nickname:', fn, ln);
+                            goBack();
+                        }}
                     />
                 );
             default:

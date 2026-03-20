@@ -21,6 +21,8 @@ import ScreenHeader from '../../components/common/ScreenHeader';
 import FooterSection from '../../components/common/FooterSection';
 import CountryPickerModal from '../../components/common/CountryPickerModal';
 
+import CommonInputScreen from '../../components/common/CommonInputScreen';
+
 const C = {
     bg: '#EBEBEC',
     white: '#FFFFFF',
@@ -80,80 +82,66 @@ const FindUserScreen: React.FC<Props> = ({ mode, onBack, onContinue }) => {
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="dark-content" />
-            <KeyboardAvoidingView
-                style={styles.flex}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <>
+            <CommonInputScreen
+                title={mode === 'phone' ? "Find by phone number" : "Find by username"}
+                onBack={onBack}
+                onContinue={handleContinue}
             >
-                <View style={styles.headerWrapper}>
-                    <ScreenHeader
-                        title={mode === 'phone' ? "Find by phone number" : "Find by username"}
-                        onBack={onBack}
-                    />
-                </View>
-
-                <View style={styles.body}>
-                    {mode === 'phone' ? (
-                        <View style={styles.phoneInputRow}>
-                            <TouchableOpacity
-                                style={styles.countryPicker}
-                                activeOpacity={0.7}
-                                onPress={() => setIsPickerVisible(true)}
-                            >
-                                {countryFlag ? (
-                                    <Image
-                                        source={{ uri: countryFlag }}
-                                        style={styles.selectedFlag}
-                                        resizeMode="cover"
-                                    />
-                                ) : null}
-                                <Text style={styles.countryCode}>+{callingCode}</Text>
-                                <Ionicons name="chevron-down" size={16} color={C.grey} />
-                            </TouchableOpacity>
-
-                            <View style={styles.phoneInputWrapper}>
-                                <TextInput
-                                    placeholder="Phone number"
-                                    placeholderTextColor={C.placeholder}
-                                    style={styles.input}
-                                    value={inputValue}
-                                    onChangeText={setInputValue}
-                                    keyboardType="phone-pad"
+                {mode === 'phone' ? (
+                    <View style={styles.phoneInputRow}>
+                        <TouchableOpacity
+                            style={styles.countryPicker}
+                            activeOpacity={0.7}
+                            onPress={() => setIsPickerVisible(true)}
+                        >
+                            {countryFlag ? (
+                                <Image
+                                    source={{ uri: countryFlag }}
+                                    style={styles.selectedFlag}
+                                    resizeMode="cover"
                                 />
-                            </View>
+                            ) : null}
+                            <Text style={styles.countryCode}>+{callingCode}</Text>
+                            <Ionicons name="chevron-down" size={16} color={C.grey} />
+                        </TouchableOpacity>
+
+                        <View style={styles.phoneInputWrapper}>
+                            <TextInput
+                                placeholder="Phone number"
+                                placeholderTextColor={C.placeholder}
+                                style={styles.input}
+                                value={inputValue}
+                                onChangeText={setInputValue}
+                                keyboardType="phone-pad"
+                            />
                         </View>
-                    ) : (
-                        <>
-                            <View style={styles.inputWrapper}>
-                                <TextInput
-                                    placeholder="Username"
-                                    placeholderTextColor={C.placeholder}
-                                    style={styles.input}
-                                    value={inputValue}
-                                    onChangeText={setInputValue}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
-                            </View>
+                    </View>
+                ) : (
+                    <>
+                        <View style={styles.inputWrapper}>
+                            <TextInput
+                                placeholder="Username"
+                                placeholderTextColor={C.placeholder}
+                                style={styles.input}
+                                value={inputValue}
+                                onChangeText={setInputValue}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </View>
 
-                            <Text style={styles.note}>
-                                Enter a username followed by a dot and its set of numbers
-                            </Text>
+                        <Text style={styles.note}>
+                            Enter a username followed by a dot and its set of numbers
+                        </Text>
 
-                            <TouchableOpacity style={styles.scanBtn} activeOpacity={0.7}>
-                                <Ionicons name="qr-code-outline" size={20} color={C.blue} />
-                                <Text style={styles.scanText}>Scan QR Code</Text>
-                            </TouchableOpacity>
-                        </>
-                    )}
-                </View>
-
-                <FooterSection
-                    buttonTitle="Continue"
-                    onButtonPress={handleContinue}
-                />
-            </KeyboardAvoidingView>
+                        <TouchableOpacity style={styles.scanBtn} activeOpacity={0.7}>
+                            <Ionicons name="qr-code-outline" size={20} color={C.blue} />
+                            <Text style={styles.scanText}>Scan QR Code</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
+            </CommonInputScreen>
 
             {mode === 'phone' && (
                 <CountryPickerModal
@@ -163,7 +151,7 @@ const FindUserScreen: React.FC<Props> = ({ mode, onBack, onContinue }) => {
                     currentCountryCode={countryCode}
                 />
             )}
-        </View>
+        </>
     );
 };
 
