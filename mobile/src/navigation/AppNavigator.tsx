@@ -234,7 +234,14 @@ const AppNavigator: React.FC = () => {
                         onLoginSuccess={handleLoginSuccess}
                         onShowSecret={handleShowSecret}
                         onGoToProfile={handleGoToProfile}
-                        onContinue={() => navigateTo({ name: 'permissions' })}
+                        onContinue={async () => {
+                            const allGranted = await permissionManager.checkAllMandatory();
+                            if (allGranted) {
+                                navigateTo({ name: 'phone' });
+                            } else {
+                                navigateTo({ name: 'permissions' });
+                            }
+                        }}
                     />
                 );
             case 'phone':
@@ -256,9 +263,13 @@ const AppNavigator: React.FC = () => {
                 return (
                     <PINScreen
                         onBack={goBack}
-                        onComplete={(pin, isAlphabet) => {
-                            console.log('PIN Setup Complete:', pin, isAlphabet);
-                            navigateTo({ name: 'home' });
+                        onComplete={() => {
+                            console.log('PIN Setup Complete');
+                            setHistory([]);
+                            setScreen({ name: 'secret', userId: user?.id ?? 0, deviceId: 0 });
+                            setTimeout(() => {
+                                setScreen({ name: 'home' });
+                            }, 3000);
                         }}
                     />
                 );

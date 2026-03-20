@@ -4,6 +4,7 @@ import profileReducer from './slices/profileSlice';
 import registerReducer from './slices/registerSlice';
 import sendOtpReducer from './slices/sendOtpSlice';
 import verifyOtpReducer from './slices/verifyOtpSlice';
+import setupPinReducer from './slices/setupPinSlice';
 
 const rootReducer = combineReducers({
     auth: authReducer,
@@ -11,6 +12,7 @@ const rootReducer = combineReducers({
     register: registerReducer,
     sendOtp: sendOtpReducer,
     verifyOtp: verifyOtpReducer,
+    setupPin: setupPinReducer,
     // Add other slice reducers here as they are created
 });
 

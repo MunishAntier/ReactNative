@@ -44,13 +44,15 @@ const KEYCHAIN_OPTIONS: SetOptions = {
  * @param value Value to store
  */
 export const saveSessionItem = async (key: string, value: string): Promise<void> => {
+  console.log(`[Keychain] Saving ${key}...`);
   try {
-    await Keychain.setGenericPassword(key, value, {
+    const result = await Keychain.setGenericPassword(key, value, {
       ...KEYCHAIN_OPTIONS,
       service: `${SESSION_SERVICE}_${key}`,
     });
+    console.log(`[Keychain] Save result for ${key}: ${!!result}`);
   } catch (e) {
-    console.warn(`[API] Failed to save ${key} to Keychain:`, e);
+    console.warn(`[Keychain] Failed to save ${key}:`, e);
   }
 };
 
@@ -67,7 +69,7 @@ export const getSessionItem = async (key: string): Promise<string | null> => {
       return result.password;
     }
   } catch (e) {
-    console.warn(`[API] Failed to read ${key} from Keychain:`, e);
+    console.warn(`[Keychain] Failed to read ${key}:`, e);
   }
   return null;
 };
@@ -107,11 +109,11 @@ const makeRequest = async (
   const defaultConfig: RequestConfig = isExternal
     ? { headers: {}, credentials: config.credentials || 'omit' }
     : {
-        headers: {
-          'Content-Type': 'application/json',
-        } as Record<string, string>,
-        credentials: 'include',
-      };
+      headers: {
+        'Content-Type': 'application/json',
+      } as Record<string, string>,
+      credentials: 'include',
+    };
 
   // Remove Content-Type for binary bodies so multipart boundary is auto-set
   if (
@@ -134,13 +136,21 @@ const makeRequest = async (
 
   // Attach access token from Keychain if available
   const accessToken = await getSessionItem('access_token');
+  console.log(`[API] accessToken found: ${accessToken ? 'YES (starts with ' + accessToken.substring(0, 10) + '...)' : 'NO'}`);
+
   if (accessToken && mergedConfig.headers) {
     mergedConfig.headers['Authorization'] = `Bearer ${accessToken}`;
+    console.log('[API] Authorization header attached');
+  } else {
+    console.log('[API] No Authorization header attached');
   }
+
   const apiBaseUrl = process.env.API_BASE_URL || 'https://api-chat.devnet.invest.net/api/v1/signal';
   const fullUrl = options.url.startsWith('http')
     ? options.url
     : `${apiBaseUrl}${options.url}`;
+
+  console.log(`[API] Request: ${options.method} ${fullUrl}`);
 
   const response = await fetch(fullUrl, {
     method: options.method,
@@ -162,7 +172,11 @@ const makeRequest = async (
       errorData = { message: `Request failed with status ${response.status}` };
     }
 
-    if (errorData?.message === 'authz.invalid_session') {
+    const errors = errorData?.errors || [];
+    const message = errorData?.message || '';
+
+    if (message === 'authz.invalid_session' || errors.includes('authz.invalid_session')) {
+      console.log('[API] Invalid session detected, wiping session...');
       notifyError('Error', 'Session has expired.');
       await removeSession();
     } else if (
@@ -212,21 +226,21 @@ export const API = {
 
   post:
     (config?: RequestConfig, baseUrl?: string) =>
-    async (url: string, body: any) =>
-      makeRequest({ method: 'POST', body, url }, config, baseUrl),
+      async (url: string, body: any) =>
+        makeRequest({ method: 'POST', body, url }, config, baseUrl),
 
   put:
     (config?: RequestConfig, baseUrl?: string) =>
-    async (url: string, body: any) =>
-      makeRequest({ method: 'PUT', body, url }, config, baseUrl),
+      async (url: string, body: any) =>
+        makeRequest({ method: 'PUT', body, url }, config, baseUrl),
 
   delete:
     (config?: RequestConfig, baseUrl?: string) =>
-    async (url: string, body: any) =>
-      makeRequest({ method: 'DELETE', body, url }, config, baseUrl),
+      async (url: string, body: any) =>
+        makeRequest({ method: 'DELETE', body, url }, config, baseUrl),
 
   patch:
     (config?: RequestConfig, baseUrl?: string) =>
-    async (url: string, body: any) =>
-      makeRequest({ method: 'PATCH', body, url }, config, baseUrl),
+      async (url: string, body: any) =>
+        makeRequest({ method: 'PATCH', body, url }, config, baseUrl),
 };

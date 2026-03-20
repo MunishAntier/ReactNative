@@ -49,7 +49,7 @@ async function ensureSessionForDevice(
     } catch { }
 
     if (!sessionExists) {
-        console.log(`[Signal🔐] 🔑 No session with User ${peerUserId} Device ${deviceId} → X3DH`);
+        console.log(`No session with User ${peerUserId} Device ${deviceId} → X3DH`);
         // Build a PeerKeyBundle from the DeviceBundle
         const bundle: PeerKeyBundle = {
             user_id: peerUserId,
@@ -64,7 +64,7 @@ async function ensureSessionForDevice(
             one_time_prekey_public: device.one_time_prekey_public ?? '',
         };
         await SignalManager.initSession(peerUserId, bundle);
-        console.log(`[Signal🔐] ✅ X3DH session established with User ${peerUserId} Device ${deviceId}`);
+        console.log(`X3DH session established with User ${peerUserId} Device ${deviceId}`);
     }
     // TODO (Rule 21): Compare identity key with stored value and reset if changed
 }
@@ -88,7 +88,7 @@ async function encryptForDevice(
             header: encrypted.header,
         };
     } catch (err: any) {
-        console.error(`[Signal🔐] ⚠️ Encrypt failed for User ${peerUserId} Device ${deviceId}: ${err.message} — retrying with fresh bundle`);
+        console.error(`Encrypt failed for User ${peerUserId} Device ${deviceId}: ${err.message} — retrying with fresh bundle`);
         // Re-establish session and retry once
         const bundle: PeerKeyBundle = {
             user_id: peerUserId,
@@ -149,7 +149,7 @@ export async function sendEncryptedMessage(
         let peerDevices: DeviceBundle[] = [];
         try {
             peerDevices = await fetchPeerDevices(receiverUserId);
-            console.log(`[Signal🔐] 📤 FAN-OUT SEND  |  Me → User ${receiverUserId}  |  ${peerDevices.length} peer device(s)`);
+            console.log(`FAN-OUT SEND  |  Me → User ${receiverUserId}  |  ${peerDevices.length} peer device(s)`);
         } catch (err: any) {
             throw new Error(`SEND_FAILED: Could not fetch devices for User ${receiverUserId}: ${err.message}`);
         }
@@ -166,10 +166,10 @@ export async function sendEncryptedMessage(
                 // Exclude current sending device
                 selfDevices = myDeviceBundles.filter(d => d.device_id !== myDeviceId);
                 if (selfDevices.length > 0) {
-                    console.log(`[Signal🔐] 📤 SELF-SYNC  |  ${selfDevices.length} other own device(s)`);
+                    console.log(`SELF-SYNC  |  ${selfDevices.length} other own device(s)`);
                 }
             } catch (err: any) {
-                console.warn(`[Signal🔐] ⚠️ Failed to fetch self devices for self-sync: ${err.message}`);
+                console.warn(`Failed to fetch self devices for self-sync: ${err.message}`);
                 // Non-fatal: message still sends to peer devices
             }
         }
@@ -195,7 +195,7 @@ export async function sendEncryptedMessage(
                 const encrypted = await encryptForDevice(device.user_id, device, plaintext);
                 ciphertexts.push(encrypted);
             } catch (err: any) {
-                console.error(`[Signal🔐] ❌ Failed to encrypt for User ${device.user_id} Device ${device.device_id}: ${err.message}`);
+                console.error(`Failed to encrypt for User ${device.user_id} Device ${device.device_id}: ${err.message}`);
                 failedDevices.push(device.device_id);
                 // Rule 15: Partial failure OK — continue with other devices
             }
@@ -209,13 +209,13 @@ export async function sendEncryptedMessage(
         websocket.sendFanOutMessage(receiverUserId, clientMessageId, ciphertexts, conversationId, messageType);
 
         console.log(
-            `[Signal🔐] 📤 FAN-OUT SENT  |  msgId=${clientMessageId}  |  ` +
+            `FAN-OUT SENT  |  msgId=${clientMessageId}  |  ` +
             `encrypted=${ciphertexts.length}  |  failed=${failedDevices.length}  |  ` +
             `devices=[${ciphertexts.map(c => c.receiver_device_id).join(',')}]`
         );
 
         if (failedDevices.length > 0) {
-            console.warn(`[Signal🔐] ⚠️ Failed devices: [${failedDevices.join(',')}]`);
+            console.warn(`Failed devices: [${failedDevices.join(',')}]`);
         }
 
         return clientMessageId;
@@ -249,7 +249,7 @@ export async function decryptIncomingMessage(
     }
 
     return withSignalLock(async () => {
-        console.log(`[Signal🔐] 📥 RECEIVE FLOW  |  User ${senderUserId} → Me  |  type=${header?.message_type || 'unknown'}  |  device=${senderDeviceId}  |  ciphertext=${ciphertextB64.length} chars`);
+        console.log(`RECEIVE FLOW  |  User ${senderUserId} → Me  |  type=${header?.message_type || 'unknown'}  |  device=${senderDeviceId}  |  ciphertext=${ciphertextB64.length} chars`);
         try {
             const plaintext = await SignalManager.decrypt(
                 senderUserId,
@@ -271,7 +271,7 @@ export async function decryptIncomingMessage(
 
             return plaintext;
         } catch (err: any) {
-            console.error(`[Signal🔐] ❌ DECRYPT FAILED  |  User ${senderUserId} → Me  |  device=${senderDeviceId}  |  type=${header?.message_type}  |  error: ${err.message}`);
+            console.error(`DECRYPT FAILED  |  User ${senderUserId} → Me  |  device=${senderDeviceId}  |  type=${header?.message_type}  |  error: ${err.message}`);
             // Only invalidate the session if the error indicates an identity change.
             // Do NOT destroy sessions on transient errors (out-of-order messages, etc.)
             const isIdentityError = err.message?.toLowerCase().includes('untrusted') ||
