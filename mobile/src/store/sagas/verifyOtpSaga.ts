@@ -38,5 +38,5 @@ function* handleVerifyOtp(action: PayloadAction<VerifyOtpPayload>): Generator<an
 // ─── Watcher ──────────────────────────────────────────────────────────────────
 
 export function* watchVerifyOtpSaga() {
-    yield takeLatest(verifyOtpRequest.type, handleVerifyOtp);
+    yield takeLatest(verifyOtpRequest, handleVerifyOtp);
 }

@@ -60,7 +60,12 @@ const VerifyScreen: React.FC<Props> = ({
     const { response: registerResponse } = useSelector(
         (state: RootState) => state.register,
     );
-    console.log('Register Response in VerifyScreen:', registerResponse);
+
+    useEffect(() => {
+        if (registerResponse) {
+            console.log('Register Response in VerifyScreen:', registerResponse);
+        }
+    }, [registerResponse]);
 
     const { loading: otpLoading, error: sendOtpError, response: sendOtpResponse } = useSelector(
         (state: RootState) => state.sendOtp,

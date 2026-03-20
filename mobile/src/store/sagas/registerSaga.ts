@@ -37,5 +37,5 @@ function* handleRegister(action: PayloadAction<RegisterPayload>): Generator<any,
 // ─── Watcher ──────────────────────────────────────────────────────────────────
 
 export function* watchRegisterSaga() {
-    yield takeLatest(registerRequest.type, handleRegister);
+    yield takeLatest(registerRequest, handleRegister);
 }
