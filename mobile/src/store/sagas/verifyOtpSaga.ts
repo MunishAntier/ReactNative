@@ -7,7 +7,7 @@ import {
     VerifyOtpPayload,
     VerifyOtpResponse,
 } from '../slices/verifyOtpSlice';
-import { API } from '../../hooks/api';
+import { API, saveSessionItem } from '../../hooks/api';
 import Path from '../../constants/endpoint';
 
 // ─── API Call ─────────────────────────────────────────────────────────────────
@@ -24,6 +24,23 @@ const apiVerifyOtp = async (payload: VerifyOtpPayload): Promise<VerifyOtpRespons
 function* handleVerifyOtp(action: PayloadAction<VerifyOtpPayload>): Generator<any, any, any> {
     try {
         const response: VerifyOtpResponse = yield call(apiVerifyOtp, action.payload);
+        console.log('[VerifyOtpSaga] Full Response keys:', Object.keys(response));
+
+        // PERSIST TOKENS SECURELY
+        if (response.access_token) {
+            console.log('[VerifyOtpSaga] Found access_token, saving...');
+            yield call(saveSessionItem, 'access_token', response.access_token);
+            console.log('[VerifyOtpSaga] access_token saved');
+        } else {
+            console.warn('[VerifyOtpSaga] access_token NOT FOUND in response');
+        }
+
+        if (response.refresh_token) {
+            console.log('[VerifyOtpSaga] Found refresh_token, saving...');
+            yield call(saveSessionItem, 'refresh_token', response.refresh_token);
+            console.log('[VerifyOtpSaga] refresh_token saved');
+        }
+
         yield put(verifyOtpSuccess(response));
     } catch (error: any) {
         console.error('[VerifyOtpSaga] error:', JSON.stringify(error));

@@ -1,4 +1,5 @@
 PODS:
+  - Argon2Swift (1.0.4)
   - AsyncStorage (3.0.1):
     - hermes-engine
     - RCTRequired
@@ -1498,6 +1499,8 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+  - react-native-aes-gcm-crypto (0.2.2):
+    - React-Core
   - react-native-config (1.6.1):
     - react-native-config/App (= 1.6.1)
   - react-native-config/App (1.6.1):
@@ -2004,6 +2007,9 @@ PODS:
     - CryptoSwift (~> 1.8.4)
     - ExpoModulesCore
     - LibSignalClient
+  - RNArgon2 (4.0.0):
+    - Argon2Swift (~> 1.0)
+    - React-Core
   - RNDeviceInfo (15.0.2):
     - React-Core
   - RNKeychain (10.0.0):
@@ -2199,6 +2205,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-aes-gcm-crypto (from `../node_modules/react-native-aes-gcm-crypto`)
   - react-native-config (from `../node_modules/react-native-config`)
   - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
   - react-native-quick-base64 (from `../node_modules/react-native-quick-base64`)
@@ -2238,6 +2245,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - ReactNativeLibsignalClient (from `../node_modules/react-native-libsignal-client/ios`)
+  - RNArgon2 (from `../node_modules/react-native-argon2`)
   - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - RNKeychain (from `../node_modules/react-native-keychain`)
   - RNPermissions (from `../node_modules/react-native-permissions`)
@@ -2247,6 +2255,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - Argon2Swift
     - CryptoSwift
 
 EXTERNAL SOURCES:
@@ -2358,6 +2367,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-aes-gcm-crypto:
+    :path: "../node_modules/react-native-aes-gcm-crypto"
   react-native-config:
     :path: "../node_modules/react-native-config"
   react-native-get-random-values:
@@ -2436,6 +2447,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   ReactNativeLibsignalClient:
     :path: "../node_modules/react-native-libsignal-client/ios"
+  RNArgon2:
+    :path: "../node_modules/react-native-argon2"
   RNDeviceInfo:
     :path: "../node_modules/react-native-device-info"
   RNKeychain:
@@ -2455,6 +2468,7 @@ CHECKOUT OPTIONS:
     :tag: v0.70.0
 
 SPEC CHECKSUMS:
+  Argon2Swift: 295b8bde7ba61434f227f5610b8813c42e866f74
   AsyncStorage: eebc990dd8895116194775bfc668cf95757d4820
   CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
   EXConstants: b3c63be5f8648e4ab8e6ff5099b62f629247f969
@@ -2471,7 +2485,7 @@ SPEC CHECKSUMS:
   ExpoModulesCore: d935ea3202d2a1b9e28e5b1085fa4de356a1d860
   ExpoModulesJSI: bcc87b51e04bdfc9a23102baac1d886630316e49
   FBLazyVector: e97c19a5a442429d1988f182a1940fb08df514da
-  hermes-engine: 0c61ec6da0b1e6528fd067a1d63b15797f78d857
+  hermes-engine: 7d5c0920dce220995eb515f591f2582ac859ff4d
   LibSignalClient: 39c03448ae4f19a53c4296efc3b7914c8e74e786
   RCTDeprecation: af44b104091a34482596cd9bd7e8d90c4e9b4bd7
   RCTRequired: bb77b070f75f53398ce43c0aaaa58337cebe2bf6
@@ -2481,7 +2495,7 @@ SPEC CHECKSUMS:
   React: 1ba7d364ade7d883a1ec055bfc3606f35fdee17b
   React-callinvoker: bc2a26f8d84fb01f003fc6de6c9337b64715f95b
   React-Core: 7840d3a80b43a95c5e80ef75146bd70925ebab0f
-  React-Core-prebuilt: 9fdcce12ab15a51320a5a51e7c0ec12625b5675e
+  React-Core-prebuilt: 1e2fe17109d4b7858da4050a51ae43ed1a46f691
   React-CoreModules: 2eb010400b63b89e53a324ffb3c112e4c7c3ce42
   React-cxxreact: a558e92199d26f145afa9e62c4233cf8e7950efe
   React-debug: d196e6df0599d78360b3211367e28c5583054133
@@ -2509,6 +2523,7 @@ SPEC CHECKSUMS:
   React-logger: b5521614afb8690420146dfc61a1447bb5d65419
   React-Mapbuffer: 0db00b587a6a6f0f6813e9fb2655e337261f513e
   React-microtasksnativemodule: 7ccd4c74006eec09a2df88ca31ba8b0c22c50a4d
+  react-native-aes-gcm-crypto: d572dd7a69f31c539bb8309b3a829bfa3bfad244
   react-native-config: c57623c5d0a1522491fff4f29ffaf172fd016525
   react-native-get-random-values: b5c58b0394402d412415337011bb227495a66380
   react-native-quick-base64: 6568199bb2ac8e72ecdfdc73a230fbc5c1d3aac4
@@ -2546,8 +2561,9 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: e96e93b493d8d86eeaee3e590ba0be53f6abe46f
   ReactCodegen: 66522f37c7e4861aec1f6a574dee83917fad4397
   ReactCommon: 07572bf9e687c8a52fbe4a3641e9e3a1a477c78e
-  ReactNativeDependencies: 777f6ee455e55870d6444c7414f02179a48c3059
+  ReactNativeDependencies: 467506c70254faa7fd035fd29395dc8c8db8ce29
   ReactNativeLibsignalClient: 5ad32b79def4489ea3bdfa15645cc1e566a95837
+  RNArgon2: 138efccb99e2e3047309cdfecb989d4ee3a2f74e
   RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNKeychain: ce2cee63eab83888c3da68684da50b9c83c33461
   RNPermissions: 17e6b3f4259b7d62b19a99b5ef654d25488aad1d
@@ -2555,6 +2571,6 @@ SPEC CHECKSUMS:
   RNSVG: 4a9f0b92f0a95bf3af7f787fd36a9c762d4d3d42
   Yoga: 846fbe6f595136be802ad81d05688ff748839764
 
-PODFILE CHECKSUM: 80e5b4af2013ef253268da8d94d7a97113bbb0e4
+PODFILE CHECKSUM: 9fffb5e4883e8b76df964add0041d84ad6d44c3e
 
 COCOAPODS: 1.16.2

@@ -4,6 +4,7 @@ import { watchProfileSaga } from './profileSaga';
 import { watchRegisterSaga } from './registerSaga';
 import { watchSendOtpSaga } from './sendOtpSaga';
 import { watchVerifyOtpSaga } from './verifyOtpSaga';
+import { watchSetupPinSaga } from './setupPinSaga';
 
 export default function* rootSaga() {
     yield all([
@@ -12,5 +13,6 @@ export default function* rootSaga() {
         fork(watchRegisterSaga),
         fork(watchSendOtpSaga),
         fork(watchVerifyOtpSaga),
+        fork(watchSetupPinSaga),
     ]);
 }

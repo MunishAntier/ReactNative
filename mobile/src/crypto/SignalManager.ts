@@ -263,7 +263,7 @@ export async function initSession(
     // ─── Log X3DH Key Agreement ───
     const ownIdPub = Buffer.from(cachedIdentity!.identityKeyPair.publicKey.serialized).toString('base64');
     console.log(`\n${LINE}`);
-    console.log(`[Signal🔐] X3DH SESSION SETUP  |  Me → User ${peerUserId}  |  Device ${peerBundle.device_id}`);
+    console.log(`X3DH SESSION SETUP  |  Me → User ${peerUserId}  |  Device ${peerBundle.device_id}`);
     console.log(LINE);
     console.log(`  Our Identity Key (pub)   : ${b64Short(ownIdPub)}  (${cachedIdentity!.identityKeyPair.publicKey.serialized.length} bytes)`);
     console.log(`  Peer Identity Key (pub)  : ${b64Short(peerBundle.identity_public_key)}  (from bundle)`);
@@ -287,7 +287,7 @@ export async function initSession(
         null, // No Kyber pre-keys
     );
 
-    console.log(`[Signal🔐] ✅ X3DH session established with User ${peerUserId}`);
+    console.log(`X3DH session established with User ${peerUserId}`);
     console.log(LINE + '\n');
 }
 
@@ -351,7 +351,7 @@ export async function encrypt(
 
     // ─── Log Encryption Details ───
     console.log(`\n${LINE}`);
-    console.log(`[Signal🔐] ENCRYPT  |  Me → User ${peerUserId}  |  Protocol: ${protocol}`);
+    console.log(`ENCRYPT  |  Me → User ${peerUserId}  |  Protocol: ${protocol}`);
     console.log(LINE);
     console.log(`  Sender Identity Key (pub): ${b64Short(senderIdPub)}  (${cachedIdentity!.identityKeyPair.publicKey.serialized.length} bytes)`);
 
@@ -429,7 +429,7 @@ export async function decrypt(
         const regId = preKeyMsg.registrationId();
         const ver = preKeyMsg.version();
         console.log(`\n${LINE}`);
-        console.log(`[Signal🔐] DECRYPT  |  User ${senderUserId} → Me  |  Protocol: X3DH + PreKey`);
+        console.log(`DECRYPT  |  User ${senderUserId} → Me  |  Protocol: X3DH + PreKey`);
         console.log(LINE);
         console.log(`  Sender Identity Key (hdr) : ${_header?.sender_identity_pub_b64 ? b64Short(_header.sender_identity_pub_b64) : 'not in header'}`);
         console.log(`  OneTime PreKey ID consumed: ${pkId ?? 'none'}`);
@@ -452,7 +452,7 @@ export async function decrypt(
 
         const decryptedText = Buffer.from(plaintext).toString('utf-8');
         console.log(`  Decrypted plaintext       : "${decryptedText.substring(0, 50)}${decryptedText.length > 50 ? '…' : ''}" (${decryptedText.length} bytes)`);
-        console.log(`[Signal🔐] ✅ PreKey decrypt successful — session established with User ${senderUserId}`);
+        console.log(`PreKey decrypt successful — session established with User ${senderUserId}`);
         console.log(LINE + '\n');
 
         // Explicitly save the sender's identity key after successful PreKey decryption.
@@ -478,7 +478,7 @@ export async function decrypt(
         try { counter = signalMsg.counter(); } catch { /* not implemented in native module */ }
         try { ver = signalMsg.messageVersion(); } catch { /* not implemented in native module */ }
         console.log(`\n${LINE}`);
-        console.log(`[Signal🔐] DECRYPT  |  User ${senderUserId} → Me  |  Protocol: Double Ratchet + Whisper`);
+        console.log(`DECRYPT  |  User ${senderUserId} → Me  |  Protocol: Double Ratchet + Whisper`);
         console.log(LINE);
         console.log(`  Sender Identity Key (hdr) : ${_header?.sender_identity_pub_b64 ? b64Short(_header.sender_identity_pub_b64) : 'not in header'}`);
         console.log(`  Ratchet Counter (chain idx): ${counter}`);
@@ -504,7 +504,7 @@ export async function decrypt(
 
         const decryptedTextW = Buffer.from(plaintext).toString('utf-8');
         console.log(`  Decrypted plaintext        : "${decryptedTextW.substring(0, 50)}${decryptedTextW.length > 50 ? '…' : ''}" (${decryptedTextW.length} bytes)`);
-        console.log(`[Signal🔐] ✅ Whisper decrypt successful`);
+        console.log(`  Whisper decrypt successful`);
         console.log(LINE + '\n');
 
     } else {

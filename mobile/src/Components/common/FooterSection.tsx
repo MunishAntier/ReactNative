@@ -4,6 +4,7 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
+    ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ interface FooterSectionProps {
     onButtonPress: () => void;
     children?: React.ReactNode;
     disabled?: boolean;
+    loading?: boolean;
 }
 
 const FooterSection: React.FC<FooterSectionProps> = ({
@@ -19,6 +21,7 @@ const FooterSection: React.FC<FooterSectionProps> = ({
     onButtonPress,
     children,
     disabled = false,
+    loading = false,
 }) => {
     const insets = useSafeAreaInsets();
 
@@ -27,12 +30,16 @@ const FooterSection: React.FC<FooterSectionProps> = ({
             {children}
 
             <TouchableOpacity
-                style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled]}
+                style={[styles.primaryBtn, (disabled || loading) && styles.primaryBtnDisabled]}
                 onPress={onButtonPress}
                 activeOpacity={0.85}
-                disabled={disabled}
+                disabled={disabled || loading}
             >
-                <Text style={styles.primaryBtnText}>{buttonTitle}</Text>
+                {loading ? (
+                    <ActivityIndicator color="#FCFDFD" />
+                ) : (
+                    <Text style={styles.primaryBtnText}>{buttonTitle}</Text>
+                )}
             </TouchableOpacity>
         </View>
     );
