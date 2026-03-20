@@ -38,5 +38,5 @@ function* handleSendOtp(action: PayloadAction<SendOtpPayload>): Generator<any, a
 // ─── Watcher ──────────────────────────────────────────────────────────────────
 
 export function* watchSendOtpSaga() {
-    yield takeLatest(sendOtpRequest.type, handleSendOtp);
+    yield takeLatest(sendOtpRequest, handleSendOtp);
 }

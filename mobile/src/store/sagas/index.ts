@@ -12,8 +12,5 @@ export default function* rootSaga() {
         fork(watchRegisterSaga),
         fork(watchSendOtpSaga),
         fork(watchVerifyOtpSaga),
-        // fork(otherSaga1),
-        // fork(otherSaga2),
-        // ... total 25 sagas
     ]);
 }

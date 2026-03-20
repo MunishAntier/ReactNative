@@ -28,6 +28,7 @@ export interface RequestConfig {
 
 import type { SetOptions } from 'react-native-keychain';
 
+
 const SESSION_SERVICE = 'securemsg_session';
 
 const KEYCHAIN_OPTIONS: SetOptions = {
@@ -183,6 +184,19 @@ const makeRequest = async (
   const contentType = response.headers.get('content-type');
   if (!contentType || !contentType.includes('application/json')) {
     return { success: true, status: response.status };
+  }
+
+  // ── Persist auth tokens from response headers ──
+  const newAccessToken = response.headers.get('x-access-token');
+  const newRefreshToken = response.headers.get('x-refresh-token');
+
+  if (newAccessToken) {
+    console.log('accessToken ', newAccessToken);
+    await saveSessionItem('access_token', newAccessToken);
+  }
+  if (newRefreshToken) {
+    console.log('refreshToken', newRefreshToken);
+    await saveSessionItem('refresh_token', newRefreshToken);
   }
 
   const data = await response.json();

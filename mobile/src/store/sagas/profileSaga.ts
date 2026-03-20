@@ -18,5 +18,5 @@ function* handleFetchProfile(): Generator<any, any, any> {
 }
 
 export function* watchProfileSaga() {
-    yield takeLatest(fetchProfileRequest.type, handleFetchProfile);
+    yield takeLatest(fetchProfileRequest, handleFetchProfile);
 }

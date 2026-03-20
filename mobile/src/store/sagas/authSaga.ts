@@ -19,5 +19,5 @@ function* handleLogin(action: PayloadAction<{ identifier: string }>): Generator<
 }
 
 export function* watchAuthSaga() {
-    yield takeLatest(loginRequest.type, handleLogin);
+    yield takeLatest(loginRequest, handleLogin);
 }
