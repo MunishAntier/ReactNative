@@ -5,7 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/rootReducer';
-import { logout } from '../store/slices/authSlice';
+import { logout, restoreSession } from '../store/slices/authSlice';
+import { getSessionItem, API } from '../hooks/api';
+import Path from '../constants/endpoint';
 import { permissionManager } from '../services/PermissionManager';
 import * as SignalManager from '../crypto/SignalManager';
 
@@ -83,6 +85,7 @@ const AppNavigator: React.FC = () => {
     const [screen, setScreen] = useState<Screen>({ name: 'loading' });
     const [history, setHistory] = useState<Screen[]>([]);
     const [showSplash, setShowSplash] = useState(true);
+    const [selectedAvatar, setSelectedAvatar] = useState<any>(null);
 
     const navigateTo = useCallback((nextScreen: Screen) => {
         setHistory(prev => [...prev, screen]);
@@ -103,12 +106,30 @@ const AppNavigator: React.FC = () => {
     const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
 
     const checkAppStatus = useCallback(async () => {
+        // Already authenticated in Redux — go home
         if (isAuthenticated && user) {
             setScreen({ name: 'home' });
-        } else {
-            setScreen({ name: 'login' });
+            return;
         }
-    }, [isAuthenticated, user]);
+
+        // Check Keychain for a persisted session
+        try {
+            const accessToken = await getSessionItem('access_token');
+            if (accessToken) {
+                // Validate token by fetching user info
+                const userInfo = await API.get()(Path.USER_INFO);
+                if (userInfo) {
+                    dispatch(restoreSession(userInfo));
+                    setScreen({ name: 'home' });
+                    return;
+                }
+            }
+        } catch (e) {
+            console.log('[AppNavigator] Session restore failed, proceeding to login:', e);
+        }
+
+        setScreen({ name: 'login' });
+    }, [isAuthenticated, user, dispatch]);
 
     useEffect(() => {
         // Log status for debugging
@@ -295,7 +316,8 @@ const AppNavigator: React.FC = () => {
                                 peerAvatar: null,
                             });
                         }}
-                        onAvatarPress={handleGoToProfile}
+                        onAvatarPress={handleGoToCharacter}
+                        avatarSource={selectedAvatar}
                     />
                 );
             case 'profile':
@@ -303,9 +325,10 @@ const AppNavigator: React.FC = () => {
                     onGoBack={goBack}
                     onSave={() => navigateTo({ name: 'pin_setup' })}
                     onEditAvatar={handleGoToCharacter}
+                    selectedAvatar={selectedAvatar}
                 />;
             case 'character':
-                return <CharacterScreen onClose={handleCloseCharacter} />;
+                return <CharacterScreen onClose={handleCloseCharacter} onSaveAvatar={(avatar) => setSelectedAvatar(avatar)} />;
             case 'secret':
                 return <SecretScreen />;
             case 'conversations':

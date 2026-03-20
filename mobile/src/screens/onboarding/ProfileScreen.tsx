@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,24 +7,84 @@ import {
     ScrollView,
     Image,
     TouchableOpacity,
+    Alert,
+    ImageSourcePropType,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store/rootReducer';
+import {
+    updateProfileRequest, updateProfileReset,
+    fetchUserInfoRequest, fetchUserInfoReset,
+} from '../../store/slices/profileSlice';
+
 import HeroSection from '../../components/common/HeroSection';
 import FooterSection from '../../components/common/FooterSection';
+
+// Constant base64 placeholder (1x1 transparent PNG) — replace with real encryption later
+const PLACEHOLDER_BASE64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
 
 interface ProfileScreenProps {
     onGoBack: () => void;
     onSave: () => void;
     onEditAvatar?: () => void;
+    selectedAvatar?: ImageSourcePropType;
 }
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditAvatar }) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditAvatar, selectedAvatar }) => {
     const [firstName, setFirstName] = React.useState('');
     const [lastName, setLastName] = React.useState('');
     const [everyoneOnChat, setEveryoneOnChat] = React.useState(true);
 
+    const dispatch = useDispatch();
+    const { loading, error, response, userInfo } =
+        useSelector((state: RootState) => state.profile);
+
+    // ─── Fetch user info on mount + cleanup on unmount ────────────────────────
+    useEffect(() => {
+        dispatch(fetchUserInfoRequest());
+        return () => {
+            dispatch(updateProfileReset());
+            dispatch(fetchUserInfoReset());
+        };
+    }, []);
+
+    // ─── Pre-fill name from fetched user info ─────────────────────────────────
+    useEffect(() => {
+        if (userInfo?.profile?.encrypted_name && !firstName) {
+            const parts = userInfo.profile.encrypted_name.split(' ');
+            setFirstName(parts[0] || '');
+            setLastName(parts.slice(1).join(' ') || '');
+        }
+    }, [userInfo]);
+
+    // ─── Handle update profile response ─────────────────────────────────────
+    useEffect(() => {
+        if (response) {
+            dispatch(updateProfileReset());
+            onSave();
+        }
+        if (error) {
+            Alert.alert(
+                'Profile Update Failed',
+                error,
+                [{ text: 'OK', onPress: () => dispatch(updateProfileReset()) }],
+            );
+        }
+    }, [response, error]);
+
+    // ─── Save handler ─────────────────────────────────────────────────────────
     const handleSave = () => {
-        onSave();
+        const name = `${firstName}${lastName ? ' ' + lastName : ''}`.trim();
+
+        dispatch(updateProfileRequest({
+            encrypted_name: name,
+            encrypted_bio: PLACEHOLDER_BASE64,
+            encrypted_avatar: PLACEHOLDER_BASE64,
+        }));
     };
+
+    const isSaveDisabled = firstName.trim().length === 0 || loading;
 
     return (
         <View style={styles.root}>
@@ -47,7 +107,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
                         <View style={styles.avatarContainer}>
                             <View style={styles.avatarBg}>
                                 <Image
-                                    source={require('../../assets/images/profile_avatar.png')}
+                                    source={selectedAvatar || require('../../assets/images/profile_avatar.png')}
                                     style={styles.avatarImage}
                                     resizeMode="cover"
                                 />
@@ -68,6 +128,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
                                 style={styles.input}
                                 value={firstName}
                                 onChangeText={setFirstName}
+                                editable={!loading}
                             />
                             {!firstName && (
                                 <View style={styles.placeholderRow} pointerEvents="none">
@@ -83,6 +144,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
                             placeholderTextColor="#606060"
                             value={lastName}
                             onChangeText={setLastName}
+                            editable={!loading}
                         />
 
                         <View style={styles.sectionWhoCanFind}>
@@ -110,7 +172,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onGoBack, onSave, onEditA
                 </View>
             </ScrollView>
 
-            <FooterSection buttonTitle="Save" onButtonPress={handleSave} />
+            <FooterSection
+                buttonTitle={loading ? 'Saving...' : 'Save'}
+                onButtonPress={handleSave}
+                disabled={isSaveDisabled}
+            />
         </View>
     );
 };

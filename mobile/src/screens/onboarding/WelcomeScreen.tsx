@@ -167,7 +167,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({onContinue }) => {
 
                             <TouchableOpacity
                                 style={styles.secondaryButton}
-                                onPress={() => setShowForm(true)}
+                                onPress={() => {}}
                                 activeOpacity={0.9}>
                                 <Text
                                     style={[
@@ -178,6 +178,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({onContinue }) => {
                                     ]}>
                                     Restore for transfer
                                 </Text>
+                                
                             </TouchableOpacity>
                         </View>
                     </View>
