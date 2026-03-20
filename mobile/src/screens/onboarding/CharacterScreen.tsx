@@ -8,9 +8,11 @@ import {
     FlatList,
     Dimensions,
     ImageSourcePropType,
+    Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import FooterSection from '../../components/common/FooterSection';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -36,25 +38,71 @@ const CELL_SIZE = (SCREEN_W - GRID_PADDING * 2 - GRID_GAP * (NUM_COLUMNS - 1)) /
 
 interface CharacterScreenProps {
     onClose: () => void;
+    onSaveAvatar?: (avatarSource: ImageSourcePropType) => void;
 }
 
-const CharacterScreen: React.FC<CharacterScreenProps> = ({ onClose }) => {
+const CharacterScreen: React.FC<CharacterScreenProps> = ({ onClose, onSaveAvatar }) => {
     const insets = useSafeAreaInsets();
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [customImage, setCustomImage] = useState<string | null>(null);
 
-    const handleCameraPress = () => {
-        // No action yet
+    const handleCameraPress = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(
+                'Camera Access Required',
+                'Please allow camera access in Settings to take a photo.',
+                [{ text: 'OK' }],
+            );
+            return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled && result.assets?.[0]) {
+            setCustomImage(result.assets[0].uri);
+            setSelectedIndex(-1);
+        }
     };
 
-    const handlePhotoPress = () => {
-        // No action yet
+    const handlePhotoPress = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(
+                'Gallery Access Required',
+                'Please allow photo library access in Settings to choose a photo.',
+                [{ text: 'OK' }],
+            );
+            return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled && result.assets?.[0]) {
+            setCustomImage(result.assets[0].uri);
+            setSelectedIndex(-1);
+        }
     };
 
     const handleSave = () => {
-        // No action yet
+        if (customImage && onSaveAvatar) {
+            onSaveAvatar({ uri: customImage } as ImageSourcePropType);
+        } else if (selectedIndex >= 0 && onSaveAvatar) {
+            onSaveAvatar(AVATAR_SOURCES[selectedIndex]);
+        }
+        onClose();
     };
 
-    const previewSource = selectedIndex >= 0 ? AVATAR_SOURCES[selectedIndex] : MAIN_AVATAR;
+    const previewSource = customImage
+        ? { uri: customImage }
+        : selectedIndex >= 0
+            ? AVATAR_SOURCES[selectedIndex]
+            : MAIN_AVATAR;
 
     const renderAvatarItem = ({ item, index }: { item: ImageSourcePropType; index: number }) => {
         const isSelected = index === selectedIndex;

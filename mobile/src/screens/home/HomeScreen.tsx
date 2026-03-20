@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Svg, Path } from 'react-native-svg';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store/rootReducer';
+import { fetchUserInfoRequest } from '../../store/slices/profileSlice';
 import BottomNavBar, { TabKey } from '../../components/common/BottomNavBar';
 import GetStartedSection from '../../components/common/GetStartedSection';
 
@@ -189,6 +192,7 @@ interface Props {
     onGetStartedItem?: (key: string) => void;
     onChatPress?: (item: typeof MOCK_CHATS[0]) => void;
     onAvatarPress?: () => void;
+    avatarSource?: any;
 }
 
 const HomeScreen: React.FC<Props> = ({
@@ -203,7 +207,19 @@ const HomeScreen: React.FC<Props> = ({
     onGetStartedItem,
     onChatPress,
     onAvatarPress,
+    avatarSource,
 }) => {
+    const dispatch = useDispatch();
+    const { userInfo } = useSelector((state: RootState) => state.profile);
+
+    useEffect(() => {
+        if (!userInfo) {
+            dispatch(fetchUserInfoRequest());
+        }
+    }, [userInfo, dispatch]);
+
+    const displayName = userInfo?.profile?.encrypted_name || userName;
+
     const [searchText, setSearchText] = useState('');
     const [activeTab, setActiveTab] = useState<TabKey>('chat');
     const [hasChats, setHasChats] = useState(false); // Default to true for testing active view
@@ -228,10 +244,10 @@ const HomeScreen: React.FC<Props> = ({
                 <View style={styles.topNav}>
                     <View style={styles.greetRow}>
                         <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
-                            <Image source={AVATAR} style={styles.avatar} />
+                            <Image source={avatarSource || AVATAR} style={styles.avatar} />
                         </TouchableOpacity>
                         <View style={styles.greetText}>
-                            <Text style={styles.greetName}>{userName}</Text>
+                            <Text style={styles.greetName}>{displayName}</Text>
                             <Text style={styles.greetSub}>{userSubtitle}</Text>
                         </View>
                     </View>

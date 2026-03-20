@@ -7,6 +7,7 @@
  */
 import * as Keychain from 'react-native-keychain';
 import { Alert } from 'react-native';
+import Config from 'react-native-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ export const getSessionItem = async (key: string): Promise<string | null> => {
  * Removes all session tokens from the Keychain / Keystore on logout.
  */
 export const removeSession = async (): Promise<void> => {
-  const keys = ['access_token', 'refresh_token', 'user'];
+  const keys = ['access_token', 'refresh_token', 'access_token_expiry', 'refresh_token_expiry', 'user'];
   await Promise.all(
     keys.map(key =>
       Keychain.resetGenericPassword({
@@ -86,6 +87,106 @@ export const removeSession = async (): Promise<void> => {
       }).catch(e => console.warn(`[API] Failed to remove ${key} from Keychain:`, e)),
     ),
   );
+};
+
+// ─── Token Refresh ───────────────────────────────────────────────────────────
+
+const REFRESH_THRESHOLD_SECONDS = 120;
+
+let isRefreshing: Promise<boolean> | null = null;
+
+/**
+ * Persists tokens and their expiry timestamps to Keychain.
+ * Expiry headers are durations in seconds; we convert to absolute epoch (ms).
+ */
+const persistTokens = async (
+  accessToken: string | null,
+  refreshToken: string | null,
+  accessExpiresIn: string | null,
+  refreshExpiresIn: string | null,
+): Promise<void> => {
+  const now = Date.now();
+
+  if (accessToken) {
+    await saveSessionItem('access_token', accessToken);
+  }
+  if (refreshToken) {
+    await saveSessionItem('refresh_token', refreshToken);
+  }
+  if (accessExpiresIn) {
+    const expiryMs = now + Number(accessExpiresIn) * 1000;
+    await saveSessionItem('access_token_expiry', String(expiryMs));
+  }
+  if (refreshExpiresIn) {
+    const expiryMs = now + Number(refreshExpiresIn) * 1000;
+    await saveSessionItem('refresh_token_expiry', String(expiryMs));
+  }
+};
+
+/**
+ * Checks whether the access token is about to expire (within threshold)
+ * and proactively refreshes it using the refresh token.
+ *
+ * De-duplicates concurrent refresh attempts so only one network call is made.
+ */
+const refreshTokenIfNeeded = async (): Promise<boolean> => {
+  const expiryStr = await getSessionItem('access_token_expiry');
+  if (!expiryStr) return false;
+
+  const expiryMs = Number(expiryStr);
+  const remainingSeconds = (expiryMs - Date.now()) / 1000;
+
+  if (remainingSeconds > REFRESH_THRESHOLD_SECONDS) return false;
+
+  // Deduplicate: if a refresh is already in-flight, wait for it
+  if (isRefreshing) return isRefreshing;
+
+  isRefreshing = (async () => {
+    try {
+      const refreshToken = await getSessionItem('refresh_token');
+      if (!refreshToken) {
+        console.warn('[API] No refresh token available — cannot refresh.');
+        return false;
+      }
+
+      const apiBaseUrl =
+        Config.API_BASE_URL;
+      const refreshPath = '/identity/sessions/refresh';
+      const fullUrl = `${apiBaseUrl}${refreshPath}`;
+
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${refreshToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn('[API] Token refresh failed with status', response.status);
+        if (response.status === 401 || response.status === 403) {
+          await removeSession();
+        }
+        return false;
+      }
+
+      const newAccessToken = response.headers.get('x-access-token');
+      const newRefreshToken = response.headers.get('x-refresh-token');
+      const accessExpiresIn = response.headers.get('x-access-expire');
+      const refreshExpiresIn = response.headers.get('x-refresh-expire');
+
+      await persistTokens(newAccessToken, newRefreshToken, accessExpiresIn, refreshExpiresIn);
+      console.log('[API] Tokens refreshed successfully.');
+      return true;
+    } catch (error) {
+      console.error('[API] Token refresh error:', error);
+      return false;
+    } finally {
+      isRefreshing = null;
+    }
+  })();
+
+  return isRefreshing;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,6 +234,9 @@ const makeRequest = async (
       ...config.headers,
     },
   };
+
+  // Proactively refresh access token if it's about to expire
+  await refreshTokenIfNeeded();
 
   // Attach access token from Keychain if available
   const accessToken = await getSessionItem('access_token');
@@ -203,15 +307,10 @@ const makeRequest = async (
   // ── Persist auth tokens from response headers ──
   const newAccessToken = response.headers.get('x-access-token');
   const newRefreshToken = response.headers.get('x-refresh-token');
+  const accessExpiresIn = response.headers.get('x-access-expire');
+  const refreshExpiresIn = response.headers.get('x-refresh-expire');
 
-  if (newAccessToken) {
-    console.log('accessToken ', newAccessToken);
-    await saveSessionItem('access_token', newAccessToken);
-  }
-  if (newRefreshToken) {
-    console.log('refreshToken', newRefreshToken);
-    await saveSessionItem('refresh_token', newRefreshToken);
-  }
+  await persistTokens(newAccessToken, newRefreshToken, accessExpiresIn, refreshExpiresIn);
 
   const data = await response.json();
   data.message = messagesMap[data.message] || data.message;
