@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:8081/index.bundle?platform=ios&dev=true&minify=false\" -o /tmp/bundle_v4.js)",
+      "Bash(grep '\"\"version\"\"' /Users/user/Desktop/Projects/ReactNative/mobile/app.json)",
+      "Bash(grep -r \"export.*contact\\\\|export.*Contact\" /Users/user/Desktop/Projects/ReactNative/mobile/src --include=*.ts --include=*.tsx)",
+      "Bash(find /Users/user/Desktop/Projects/ReactNative/mobile/src -type d -name *contact* -o -type d -name *store* -o -type d -name *services*)"
+    ]
+  }
+}
