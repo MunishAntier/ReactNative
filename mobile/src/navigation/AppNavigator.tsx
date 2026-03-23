@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StatusBar, AppState, AppStateStatus, ActivityIndicator, View } from 'react-native';
+import { StatusBar, AppState, AppStateStatus, ActivityIndicator, View, Alert } from 'react-native';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -31,6 +31,21 @@ import FindUserScreen from '../screens/home/FindUserScreen';
 import AboutUserScreen from '../screens/home/AboutUserScreen';
 import VerifyNumberScreen from '../screens/home/VerifyNumberScreen';
 import NicknameScreen from '../screens/home/NicknameScreen';
+import SettingsScreen from '../screens/home/SettingsScreen';
+import AccountScreen from '../screens/home/AccountScreen';
+import ChangePinScreen from '../screens/home/ChangePinScreen';
+import ChangeNumberScreen from '../screens/home/ChangeNumberScreen';
+import ChatsSettingScreen from '../screens/home/ChatsSettingScreen';
+import NotificationsSettingScreen from '../screens/home/NotificationsSettingScreen';
+import HelpScreen from '../screens/home/HelpScreen';
+import PrivacySettingScreen from '../screens/home/PrivacySettingScreen';
+import DataStorageScreen from '../screens/home/DataStorageScreen';
+import StoriesSettingScreen from '../screens/home/StoriesSettingScreen';
+import MyStoryScreen from '../screens/home/MyStoryScreen';
+import ChooseViewersScreen from '../screens/home/ChooseViewersScreen';
+import DeleteAccountScreen from '../screens/home/DeleteAccountScreen';
+import LinkedDevicesScreen from '../screens/home/LinkedDevicesScreen';
+import InviteFriendsScreen from '../screens/home/InviteFriendsScreen';
 
 type Screen =
     | { name: 'loading' }
@@ -71,7 +86,23 @@ type Screen =
         name: 'nickname';
         firstName: string;
         lastName: string;
-    };
+    }
+    | { name: 'settings' }
+    | { name: 'account' }
+    | { name: 'change_pin_create' }
+    | { name: 'change_pin_confirm'; pin: string }
+    | { name: 'change_number' }
+    | { name: 'chats_setting' }
+    | { name: 'notifications_setting' }
+    | { name: 'help' }
+    | { name: 'privacy_setting' }
+    | { name: 'data_storage' }
+    | { name: 'stories_setting' }
+    | { name: 'my_story' }
+    | { name: 'choose_viewers' }
+    | { name: 'delete_account' }
+    | { name: 'linked_devices' }
+    | { name: 'invite_friends' };
 
 const AppNavigator: React.FC = () => {
     const [fontsLoaded] = useFonts({
@@ -300,6 +331,7 @@ const AppNavigator: React.FC = () => {
                         onTabPress={(key) => {
                             if (key === 'calls') navigateTo({ name: 'call_menu' });
                             if (key === 'chats') navigateTo({ name: 'conversations', userId: 0, deviceId: 0 });
+                            if (key === 'settings') navigateTo({ name: 'settings' });
                         }}
                         onGetStartedItem={(key) => {
                             if (key === 'invite') navigateTo({ name: 'select_contact' });
@@ -449,6 +481,99 @@ const AppNavigator: React.FC = () => {
                         }}
                     />
                 );
+            case 'settings':
+                return (
+                    <SettingsScreen
+                        onBack={goBack}
+                        onAccountPress={() => navigateTo({ name: 'account' })}
+                        onChatsPress={() => navigateTo({ name: 'chats_setting' })}
+                        onNotificationsPress={() => navigateTo({ name: 'notifications_setting' })}
+                        onHelpPress={() => navigateTo({ name: 'help' })}
+                        onPrivacyPress={() => navigateTo({ name: 'privacy_setting' })}
+                        onDataStoragePress={() => navigateTo({ name: 'data_storage' })}
+                        onStoriesPress={() => navigateTo({ name: 'stories_setting' })}
+                        onLinkedDevicesPress={() => navigateTo({ name: 'linked_devices' })}
+                        onInviteFriendsPress={() => navigateTo({ name: 'invite_friends' })}
+                        onTabPress={(key) => {
+                            if (key === 'chat') {
+                                setHistory([]);
+                                setScreen({ name: 'home' });
+                            }
+                            if (key === 'calls') {
+                                setHistory([{ name: 'home' }]);
+                                setScreen({ name: 'call_menu' });
+                            }
+                        }}
+                    />
+                );
+            case 'account':
+                return (
+                    <AccountScreen
+                        onBack={goBack}
+                        onChangePin={() => navigateTo({ name: 'change_pin_create' })}
+                        onChangeNumber={() => navigateTo({ name: 'change_number' })}
+                        onDeleteAccount={() => navigateTo({ name: 'delete_account' })}
+                    />
+                );
+            case 'change_pin_create':
+                return (
+                    <ChangePinScreen
+                        key="pin-create"
+                        mode="create"
+                        onBack={goBack}
+                        onContinue={(pin) => navigateTo({ name: 'change_pin_confirm', pin })}
+                    />
+                );
+            case 'change_pin_confirm':
+                return (
+                    <ChangePinScreen
+                        key="pin-confirm"
+                        mode="confirm"
+                        onBack={goBack}
+                        onContinue={(confirmPin) => {
+                            if (confirmPin === screen.pin) {
+                                console.log('PIN changed successfully');
+                                Alert.alert('Success', 'PIN changed successfully');
+                                setHistory([{ name: 'home' }, { name: 'settings' }]);
+                                setScreen({ name: 'account' });
+                            } else {
+                                Alert.alert('Mismatch', 'PINs do not match. Please try again.');
+                            }
+                        }}
+                    />
+                );
+            case 'change_number':
+                return (
+                    <ChangeNumberScreen
+                        onBack={goBack}
+                        onContinue={(oldNum, newNum) => {
+                            console.log('Change number:', oldNum, '->', newNum);
+                            goBack();
+                        }}
+                    />
+                );
+            case 'chats_setting':
+                return <ChatsSettingScreen onBack={goBack} />;
+            case 'notifications_setting':
+                return <NotificationsSettingScreen onBack={goBack} />;
+            case 'help':
+                return <HelpScreen onBack={goBack} />;
+            case 'privacy_setting':
+                return <PrivacySettingScreen onBack={goBack} />;
+            case 'data_storage':
+                return <DataStorageScreen onBack={goBack} />;
+            case 'stories_setting':
+                return <StoriesSettingScreen onBack={goBack} onMyStoryPress={() => navigateTo({ name: 'my_story' })} onNewCustomStory={() => navigateTo({ name: 'choose_viewers' })} />;
+            case 'my_story':
+                return <MyStoryScreen onBack={goBack} onChooseViewers={() => navigateTo({ name: 'choose_viewers' })} />;
+            case 'choose_viewers':
+                return <ChooseViewersScreen onBack={goBack} onContinue={() => goBack()} />;
+            case 'delete_account':
+                return <DeleteAccountScreen onBack={goBack} onDelete={(phone) => { console.log('Delete account:', phone); goBack(); }} />;
+            case 'linked_devices':
+                return <LinkedDevicesScreen onBack={goBack} />;
+            case 'invite_friends':
+                return <InviteFriendsScreen onBack={goBack} />;
             default:
                 return null;
         }
