@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    ScrollView,
     TextInput,
     StatusBar,
-    FlatList,
+    SectionList,
+    Share,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
+import { useSelector, useDispatch } from 'react-redux';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import FooterSection from '../../components/common/FooterSection';
+import { RootState } from '../../store/rootReducer';
+import { syncContactsRequest } from '../../store/slices/contactsSlice';
 
 // -- Constants --
 const C = {
@@ -31,14 +35,22 @@ const ACTION_ITEMS = [
     { id: 'phone', label: 'Find by phone number', icon: 'phone-portrait-outline' },
 ];
 
-interface ContactItem {
+interface FormattedContact {
     id: string;
     name: string;
     initial: string;
     color: string;
+    isAppUser: boolean;
+    phoneNumber?: string;
 }
 
 const AVATAR_COLORS = ['#BDE8E0', '#F2E8CF', '#E2D1F9'];
+const GET_COLOR = (index: number) => AVATAR_COLORS[index % AVATAR_COLORS.length];
+const GET_TEXT_COLOR = (color: string) => {
+    if (color === '#BDE8E0') return '#2DAA94';
+    if (color === '#F2E8CF') return '#D4A017';
+    return '#9B51E0';
+};
 
 interface Props {
     title: string;
@@ -59,54 +71,63 @@ const ContactPickerScreen: React.FC<Props> = ({
     onContinue,
     onNewGroup,
 }) => {
+    const dispatch = useDispatch();
+    const { appUsers, inviteUsers, loading, error } = useSelector((state: RootState) => state.contacts);
+
     const [searchText, setSearchText] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [contacts, setContacts] = useState<ContactItem[]>([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadContacts();
-    }, []);
+        dispatch(syncContactsRequest());
+    }, [dispatch]);
 
-    const loadContacts = async () => {
-        try {
-            const { status } = await Contacts.requestPermissionsAsync();
-            if (status === 'granted') {
-                const { data } = await Contacts.getContactsAsync({
-                    fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-                });
-
-                if (data.length > 0) {
-                    const formatted = data.map((contact: Contacts.ExistingContact, index: number) => ({
-                        id: contact.id || String(index),
-                        name: contact.name,
-                        initial: contact.name ? contact.name.charAt(0).toUpperCase() : '?',
-                        color: AVATAR_COLORS[index % AVATAR_COLORS.length],
-                    }));
-                    setContacts(formatted);
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching contacts:', error);
-        } finally {
-            setLoading(false);
-        }
+    const formatContacts = (contacts: Contacts.Contact[], isAppUser: boolean) => {
+        return contacts.map((c: any, index) => ({
+            id: c.id || `contact-${index}`,
+            name: c.name || 'Unknown',
+            initial: c.name ? c.name.charAt(0).toUpperCase() : '?',
+            color: GET_COLOR(index),
+            isAppUser,
+            phoneNumber: c.phoneNumbers?.[0]?.number,
+        }));
     };
 
-    const filteredContacts = contacts.filter(c =>
-        (c.name || '').toLowerCase().includes(searchText.toLowerCase())
-    );
+    const formattedSections = useMemo(() => {
+        const appData = formatContacts(appUsers, true).filter(c =>
+            c.name.toLowerCase().includes(searchText.toLowerCase())
+        );
+        const inviteData = formatContacts(inviteUsers, false).filter(c =>
+            c.name.toLowerCase().includes(searchText.toLowerCase())
+        );
+
+        const sections = [];
+        if (appData.length > 0) {
+            sections.push({ title: 'On App', data: appData });
+        }
+        if (inviteData.length > 0) {
+            sections.push({ title: 'Invite to App', data: inviteData });
+        }
+        return sections;
+    }, [appUsers, inviteUsers, searchText]);
+
+    const totalContacts = appUsers.length + inviteUsers.length;
 
     const toggleSelection = (id: string) => {
-        if (!multiSelect) {
-            // If single select, maybe just return or handling differently
-            // For now, let's keep it simple. If single select, usually we navigate away immediately.
-            return;
-        }
+        if (!multiSelect) return;
         if (selectedIds.includes(id)) {
             setSelectedIds(selectedIds.filter(i => i !== id));
         } else {
             setSelectedIds([...selectedIds, id]);
+        }
+    };
+
+    const handleInvite = async (contact: FormattedContact) => {
+        try {
+            await Share.share({
+                message: `Hey ${contact.name}, join me on this secure messaging app! 🚀`,
+            });
+        } catch (error) {
+            console.error('Error sharing:', error);
         }
     };
 
@@ -131,7 +152,7 @@ const ContactPickerScreen: React.FC<Props> = ({
         </TouchableOpacity>
     );
 
-    const renderContactItem = ({ item }: { item: ContactItem }) => {
+    const renderContactItem = ({ item }: { item: FormattedContact }) => {
         const isSelected = selectedIds.includes(item.id);
         return (
             <TouchableOpacity
@@ -140,9 +161,22 @@ const ContactPickerScreen: React.FC<Props> = ({
                 onPress={() => toggleSelection(item.id)}
             >
                 <View style={[styles.avatar, { backgroundColor: item.color }]}>
-                    <Text style={[styles.avatarText, { color: item.color === '#BDE8E0' ? '#2DAA94' : item.color === '#F2E8CF' ? '#D4A017' : '#9B51E0' }]}>{item.initial}</Text>
+                    <Text style={[styles.avatarText, { color: GET_TEXT_COLOR(item.color) }]}>
+                        {item.initial}
+                    </Text>
                 </View>
-                <Text style={styles.contactName}>{item.name}</Text>
+                <View style={styles.contactInfo}>
+                    <Text style={styles.contactName}>{item.name}</Text>
+                    {item.phoneNumber && <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>}
+                </View>
+                {!item.isAppUser && (
+                    <TouchableOpacity
+                        style={styles.inviteButton}
+                        onPress={() => handleInvite(item)}
+                    >
+                        <Text style={styles.inviteText}>Invite</Text>
+                    </TouchableOpacity>
+                )}
                 {multiSelect && (
                     <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
                         {isSelected && <Ionicons name="checkmark" size={14} color={C.white} />}
@@ -152,12 +186,29 @@ const ContactPickerScreen: React.FC<Props> = ({
         );
     };
 
+    const renderSectionHeader = ({ section: { title } }: any) => (
+        <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <TouchableOpacity
+                onPress={() => dispatch(syncContactsRequest())}
+                disabled={loading}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+                {loading ? (
+                    <ActivityIndicator size="small" color={C.blue} />
+                ) : (
+                    <Ionicons name="refresh-outline" size={20} color={C.blue} />
+                )}
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
 
             <ScreenHeader
-                title={`${title} (${contacts.length})`}
+                title={`${title} (${totalContacts})`}
                 onBack={onBack}
                 rightComponent={
                     !multiSelect ? (
@@ -170,7 +221,7 @@ const ContactPickerScreen: React.FC<Props> = ({
                 }
             />
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.content}>
                 {/* Search Bar */}
                 <View style={styles.searchWrapper}>
                     <Ionicons name="search-outline" size={18} color="#0230F9" />
@@ -187,7 +238,7 @@ const ContactPickerScreen: React.FC<Props> = ({
                 </View>
 
                 {/* Actions */}
-                {showActions && (
+                {showActions && !searchText && (
                     <View style={styles.actionsList}>
                         {ACTION_ITEMS.map(item => {
                             if (item.id === 'group' && !onNewGroup) return null;
@@ -196,23 +247,36 @@ const ContactPickerScreen: React.FC<Props> = ({
                     </View>
                 )}
 
+                {/* Error Message */}
+                {error && (
+                    <View style={styles.errorWrapper}>
+                        <Ionicons name="alert-circle-outline" size={20} color="#FF3B30" />
+                        <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                )}
+
                 {/* Contacts Section */}
-                <View style={styles.contactsSection}>
-                    <Text style={styles.sectionTitle}>My Contacts ({contacts.length})</Text>
-                    {loading ? (
-                        <Text style={styles.loadingText}>Loading contacts...</Text>
-                    ) : filteredContacts.length > 0 ? (
-                        <FlatList
-                            data={filteredContacts}
-                            renderItem={renderContactItem}
-                            keyExtractor={item => item.id}
-                            scrollEnabled={false}
-                        />
-                    ) : (
+                {loading ? (
+                    <View style={styles.centerContainer}>
+                        <ActivityIndicator size="large" color={C.blue} />
+                        <Text style={styles.loadingText}>Syncing contacts...</Text>
+                    </View>
+                ) : formattedSections.length > 0 ? (
+                    <SectionList
+                        sections={formattedSections}
+                        renderItem={renderContactItem}
+                        renderSectionHeader={renderSectionHeader}
+                        keyExtractor={item => item.id}
+                        stickySectionHeadersEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.listContent}
+                    />
+                ) : (
+                    <View style={styles.centerContainer}>
                         <Text style={styles.emptyText}>No contacts found</Text>
-                    )}
-                </View>
-            </ScrollView>
+                    </View>
+                )}
+            </View>
 
             {multiSelect && (
                 <FooterSection
@@ -228,6 +292,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: C.bg,
+    },
+    content: {
+        flex: 1,
+        paddingHorizontal: 16,
     },
     moreBtn: {
         width: 40,
@@ -246,8 +314,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    scrollContent: {
-        paddingHorizontal: 16,
+    listContent: {
         paddingBottom: 100,
     },
     searchWrapper: {
@@ -257,9 +324,23 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         paddingHorizontal: 16,
         height: 48,
-        marginBottom: 20,
+        marginVertical: 20,
         borderWidth: 1,
         borderColor: C.border,
+    },
+    errorWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFE5E5',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+    },
+    errorText: {
+        color: '#FF3B30',
+        fontSize: 14,
+        marginLeft: 8,
+        flex: 1,
     },
     searchInput: {
         flex: 1,
@@ -293,13 +374,16 @@ const styles = StyleSheet.create({
         color: C.dark,
         fontFamily: 'Gilroy-Regular',
     },
-    contactsSection: {
-        marginTop: 10,
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 24,
+        marginBottom: 16,
     },
     sectionTitle: {
         fontSize: 20,
         color: C.blue,
-        marginBottom: 16,
         fontFamily: 'ClashDisplay-Regular',
     },
     contactRow: {
@@ -318,11 +402,31 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 18,
     },
-    contactName: {
+    contactInfo: {
         flex: 1,
+    },
+    contactName: {
         fontSize: 16,
         color: C.dark,
         fontFamily: 'Gilroy-Regular',
+    },
+    phoneNumber: {
+        fontSize: 12,
+        color: C.grey,
+        marginTop: 2,
+    },
+    inviteButton: {
+        backgroundColor: C.white,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: C.blue,
+    },
+    inviteText: {
+        color: C.blue,
+        fontSize: 14,
+        fontWeight: '600',
     },
     checkbox: {
         width: 22,
@@ -332,22 +436,26 @@ const styles = StyleSheet.create({
         borderColor: '#D0D0D0',
         alignItems: 'center',
         justifyContent: 'center',
+        marginLeft: 12,
     },
     checkboxSelected: {
         backgroundColor: C.blue,
         borderColor: C.blue,
     },
+    centerContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 40,
+    },
     loadingText: {
         fontSize: 14,
         color: C.grey,
-        textAlign: 'center',
-        marginTop: 20,
+        marginTop: 12,
     },
     emptyText: {
         fontSize: 14,
         color: C.grey,
-        textAlign: 'center',
-        marginTop: 20,
     },
 });
 

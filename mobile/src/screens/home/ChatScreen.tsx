@@ -565,7 +565,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 style={[
                     styles.header,
                     {
-                        marginTop: 60, // Increased for better clearance
+                        marginTop: insets.top, // Dynamic inset for notch/status bar
                     },
                 ]}>
                 <View style={styles.headerLeft}>
@@ -668,7 +668,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
                 style={[
                     styles.composerWrap,
                     {
-                        width: 382,
+                        width: '95%',
                         alignSelf: 'center',
                         marginBottom: Math.max(insets.bottom, 14),
                     },

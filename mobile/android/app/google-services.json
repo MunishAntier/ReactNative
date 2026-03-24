@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "79354218040",
+    "project_id": "investchat-13347",
+    "storage_bucket": "investchat-13347.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:79354218040:android:e7faf471e2cbdcf8d448cd",
+        "android_client_info": {
+          "package_name": "com.securemsg"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKq5z3Dl48oLwjJPD4CdxZesetVdMjOA8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -9,6 +9,8 @@ import org.signal.libsignal.protocol.InvalidKeyIdException
 import org.signal.libsignal.protocol.NoSessionException
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.groups.state.SenderKeyRecord
+import org.signal.libsignal.protocol.kem.KEMKeyPair
+import org.signal.libsignal.protocol.state.KyberPreKeyRecord
 import org.signal.libsignal.protocol.state.PreKeyRecord
 import org.signal.libsignal.protocol.state.SessionRecord
 import org.signal.libsignal.protocol.state.SignalProtocolStore
@@ -210,6 +212,21 @@ class PersistentSignalProtocolStore(context: Context) : SignalProtocolStore {
     override fun loadSenderKey(sender: SignalProtocolAddress, distributionId: UUID): SenderKeyRecord {
         return delegate.loadSenderKey(sender, distributionId)
     }
+
+    override fun loadKyberPreKey(kyberPreKeyId: Int): KyberPreKeyRecord =
+        delegate.loadKyberPreKey(kyberPreKeyId)
+
+    override fun loadKyberPreKeys(): MutableList<KyberPreKeyRecord> =
+        delegate.loadKyberPreKeys()
+
+    override fun storeKyberPreKey(kyberPreKeyId: Int, record: KyberPreKeyRecord) =
+        delegate.storeKyberPreKey(kyberPreKeyId, record)
+
+    override fun containsKyberPreKey(kyberPreKeyId: Int): Boolean =
+        delegate.containsKyberPreKey(kyberPreKeyId)
+
+    override fun markKyberPreKeyUsed(kyberPreKeyId: Int) =
+        delegate.markKyberPreKeyUsed(kyberPreKeyId)
 
     private fun senderKey(sender: SignalProtocolAddress, distributionId: UUID): String {
         return "${addressKey(sender)}#$distributionId"

@@ -249,7 +249,7 @@ const makeRequest = async (
     console.log('[API] No Authorization header attached');
   }
 
-  const apiBaseUrl = process.env.API_BASE_URL || 'https://api-chat.devnet.invest.net/api/v1/signal';
+  const apiBaseUrl = Config.API_BASE_URL || 'https://api-chat.devnet.invest.net/api/v1/signal';
   const fullUrl = options.url.startsWith('http')
     ? options.url
     : `${apiBaseUrl}${options.url}`;
@@ -313,7 +313,21 @@ const makeRequest = async (
   await persistTokens(newAccessToken, newRefreshToken, accessExpiresIn, refreshExpiresIn);
 
   const data = await response.json();
-  data.message = messagesMap[data.message] || data.message;
+
+  // Only apply message mapping and token merging to object responses,
+  // not plain array responses (e.g. contacts sync returns string[])
+  if (!Array.isArray(data)) {
+    data.message = messagesMap[data.message] || data.message;
+
+    // Merge header tokens into data if present, so sagas can find them
+    if (newAccessToken && !data.access_token) {
+      data.access_token = newAccessToken;
+    }
+    if (newRefreshToken && !data.refresh_token) {
+      data.refresh_token = newRefreshToken;
+    }
+  }
+
   return data;
 };
 

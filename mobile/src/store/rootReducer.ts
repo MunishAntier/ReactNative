@@ -5,6 +5,7 @@ import registerReducer from './slices/registerSlice';
 import sendOtpReducer from './slices/sendOtpSlice';
 import verifyOtpReducer from './slices/verifyOtpSlice';
 import setupPinReducer from './slices/setupPinSlice';
+import contactsReducer from './slices/contactsSlice';
 
 const rootReducer = combineReducers({
     auth: authReducer,
@@ -13,7 +14,7 @@ const rootReducer = combineReducers({
     sendOtp: sendOtpReducer,
     verifyOtp: verifyOtpReducer,
     setupPin: setupPinReducer,
-    // Add other slice reducers here as they are created
+    contacts: contactsReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

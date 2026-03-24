@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StatusBar, AppState, AppStateStatus, ActivityIndicator, View, Alert } from 'react-native';
+import { StatusBar, AppState, AppStateStatus, ActivityIndicator, View, BackHandler } from 'react-native';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -161,6 +161,19 @@ const AppNavigator: React.FC = () => {
 
         setScreen({ name: 'login' });
     }, [isAuthenticated, user, dispatch]);
+
+    useEffect(() => {
+        const onBackPress = () => {
+            if (history.length > 0) {
+                goBack();
+                return true; // Prevent default behavior (exit app)
+            }
+            return false; // Default behavior
+        };
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [history, goBack]);
 
     useEffect(() => {
         // Log status for debugging
