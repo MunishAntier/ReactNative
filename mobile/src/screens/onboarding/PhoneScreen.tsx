@@ -27,6 +27,7 @@ import DeviceInfo from 'react-native-device-info';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../store/rootReducer';
 import { registerRequest, registerReset } from '../../store/slices/registerSlice';
+import { sendOtpRequest, sendOtpReset } from '../../store/slices/sendOtpSlice';
 import { saveSessionItem } from '../../hooks/api';
 
 import HeroSection from '../../components/common/HeroSection';
@@ -69,6 +70,9 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
     const dispatch = useDispatch();
     const { loading, error: registerError, response: registerResponse } = useSelector(
         (state: RootState) => state.register,
+    );
+    const { loading: sendOtpLoading, error: sendOtpError, response: sendOtpResponse } = useSelector(
+        (state: RootState) => state.sendOtp,
     );
 
     // ─── Initial Country Flag ─────────────────────────────────────────────────
@@ -182,13 +186,51 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
 
     useEffect(() => {
         if (registerError) {
-            Alert.alert(
-                'Registration Failed',
-                registerError,
-                [{ text: 'OK', onPress: () => dispatch(registerReset()) }],
-            );
+            const isUserExists =
+                registerError.toLowerCase().includes('already registered') ||
+                registerError.toLowerCase().includes('already_registered') ||
+                registerError.toLowerCase().includes('already exists') ||
+                registerError.toLowerCase().includes('already_exists') ||
+                registerError.toLowerCase().includes('identity.user_already_registered');
+
+            if (isUserExists) {
+                Alert.alert(
+                    'User already registered',
+                    'This phone number is already registered. We will send you an OTP to verify your identity.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => {
+                                dispatch(registerReset());
+                                triggerOtpResend();
+                            },
+                        },
+                    ],
+                );
+            } else {
+                Alert.alert(
+                    'Registration Failed',
+                    registerError,
+                    [{ text: 'OK', onPress: () => dispatch(registerReset()) }],
+                );
+            }
         }
-    }, [registerError]);
+    }, [registerError, dispatch]);
+
+    useEffect(() => {
+        if (sendOtpResponse) {
+            const digitsOnly = phoneNumber.replace(/\D/g, '');
+            const fullPhoneNumber = `+${callingCode}${digitsOnly}`;
+            onNext?.(fullPhoneNumber);
+            dispatch(sendOtpReset());
+        }
+    }, [sendOtpResponse, dispatch, onNext, callingCode, phoneNumber]);
+
+    useEffect(() => {
+        if (sendOtpError) {
+            Alert.alert('Error', sendOtpError, [{ text: 'OK', onPress: () => dispatch(sendOtpReset()) }]);
+        }
+    }, [sendOtpError, dispatch]);
 
     // ─── Country Picker ───────────────────────────────────────────────────────
 
@@ -213,8 +255,28 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
 
     // ─── Handle Next Press ────────────────────────────────────────────────────
 
+    const triggerOtpResend = async () => {
+        try {
+            const deviceUuid = uuid.v4() as string;
+            await saveSessionItem('device_uuid', deviceUuid);
+            const deviceType = DeviceInfo.getSystemName();
+            const digitsOnly = phoneNumber.replace(/\D/g, '');
+            const fullPhoneNumber = `+${callingCode}${digitsOnly}`;
+
+            const payload = {
+                phone_number: fullPhoneNumber,
+                device_id: deviceUuid,
+                device_type: deviceType,
+            };
+
+            dispatch(sendOtpRequest(payload));
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to send OTP. Please try again.');
+        }
+    };
+
     const handleNext = async () => {
-        if (!isValid || loading) return;
+        if (!isValid || loading || sendOtpLoading) return;
 
         try {
             // 1. Generate UUID v4
@@ -222,7 +284,6 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
 
             // 2. Store UUID in keychain
             await saveSessionItem('device_uuid', deviceUuid);
-            // console.log('[PhoneScreen] Stored device_uuid in keychain:', deviceUuid);
 
             // 3. Get device type
             const deviceType = DeviceInfo.getSystemName(); // 'iOS' or 'Android'
@@ -238,8 +299,6 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
                 device_type: deviceType,
             };
 
-            // console.log('[PhoneScreen] Registration payload:', JSON.stringify(payload));
-
             // 6. Dispatch to Redux saga
             dispatch(registerRequest(payload));
         } catch (err: any) {
@@ -249,7 +308,7 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
 
     // ─── Derived State ────────────────────────────────────────────────────────
 
-    const isButtonDisabled = !isValid || loading;
+    const isButtonDisabled = !isValid || loading || sendOtpLoading;
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -338,12 +397,12 @@ const PhoneScreen: React.FC<Props> = ({ onBack, onNext }) => {
                     </Text>
 
                     <FooterSection
-                        buttonTitle={loading ? '' : 'Next'}
+                        buttonTitle={loading || sendOtpLoading ? '' : 'Next'}
                         onButtonPress={handleNext}
                         disabled={isButtonDisabled}
                     />
 
-                    {loading && (
+                    {(loading || sendOtpLoading) && (
                         <View style={styles.loadingOverlay}>
                             <ActivityIndicator size="small" color="#FFFFFF" />
                         </View>

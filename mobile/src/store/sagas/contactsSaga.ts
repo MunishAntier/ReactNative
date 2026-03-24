@@ -97,9 +97,7 @@ function* handleSyncContacts(): Generator<any, any, any> {
 
     } catch (error: any) {
         console.error('[ContactsSaga] error:', error);
-        const message = error?.errors
-            ? (Array.isArray(error.errors) ? error.errors.join(', ') : error.errors)
-            : error?.message || 'Failed to sync contacts';
+        const message = error?.message || 'Failed to sync contacts';
         yield put(syncContactsFailure(message));
     }
 }

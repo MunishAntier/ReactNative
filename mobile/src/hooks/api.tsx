@@ -249,7 +249,7 @@ const makeRequest = async (
     console.log('[API] No Authorization header attached');
   }
 
-  const apiBaseUrl = Config.API_BASE_URL || 'https://api-chat.devnet.invest.net/api/v1/signal';
+  const apiBaseUrl = process.env.API_BASE_URL || 'https://api-chat.devnet.invest.net/api/v1/signal';
   const fullUrl = options.url.startsWith('http')
     ? options.url
     : `${apiBaseUrl}${options.url}`;
