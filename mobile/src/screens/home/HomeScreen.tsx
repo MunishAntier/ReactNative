@@ -11,6 +11,7 @@ import {
     Image,
     Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Svg, Path } from 'react-native-svg';
 import { useDispatch, useSelector } from 'react-redux';
@@ -83,7 +84,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ active, onSelect }) => (
     </View>
 );
 const filterStyles = StyleSheet.create({
-    container: { marginVertical: 15, width: 382, alignSelf: 'center', paddingHorizontal: 0 },
+    container: { marginVertical: 15, width: '95%', alignSelf: 'center', paddingHorizontal: 0 },
     inner: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center' },
     item: { paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: 'transparent' },
     itemActive: { borderBottomColor: C.dark },
@@ -147,7 +148,7 @@ const chatStyles = StyleSheet.create({
         paddingHorizontal: 0,
         paddingBottom: 16,
         height: 68,
-        width: 380.8,
+        width: '95%',
         alignSelf: 'center',
         borderBottomWidth: 1,
         borderBottomColor: C.skipGrey,
@@ -209,6 +210,7 @@ const HomeScreen: React.FC<Props> = ({
     onAvatarPress,
     avatarSource,
 }) => {
+    const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const { userInfo } = useSelector((state: RootState) => state.profile);
 
@@ -241,7 +243,7 @@ const HomeScreen: React.FC<Props> = ({
 
             <View style={styles.root}>
                 {/* ── TOP NAV ── */}
-                <View style={styles.topNav}>
+                <View style={[styles.topNav, { marginTop: insets.top }]}>
                     <View style={styles.greetRow}>
                         <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
                             <Image source={avatarSource || AVATAR} style={styles.avatar} />
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
     topNav: {
         width: '100%',
         height: 50,
-        marginTop: 60, // Consistent with ChatScreen refinement
+        // marginTop: 60, // Refactored to use insets.top inline
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
     searchWrapper: {
         flexDirection: 'row', alignItems: 'center', backgroundColor: C.searchBg,
         borderRadius: 9, borderWidth: 1, borderColor: C.searchBorder,
-        width: 382, height: 42,
+        width: '95%', height: 42,
         paddingTop: 11, paddingBottom: 11,
         paddingLeft: 16, paddingRight: 16,
         gap: 8,

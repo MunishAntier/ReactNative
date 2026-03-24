@@ -9,6 +9,7 @@ import {
     RefreshControl,
     Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { loadConversations as loadStoredConversations, upsertConversation } from '../services/localChatStore';
 
 export interface ConversationItem {
@@ -38,6 +39,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
     onStartNewChat,
     onLogout,
 }) => {
+    const insets = useSafeAreaInsets();
     const [conversations, setConversations] = useState<ConversationItem[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [showNewChat, setShowNewChat] = useState(false);
@@ -163,7 +165,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <View style={[styles.header, { marginTop: insets.top }]}>
                 <Text style={styles.headerTitle}>Chats</Text>
                 <View style={styles.headerActions}>
                     <TouchableOpacity onPress={() => setShowNewChat(true)} style={styles.headerButton}>
@@ -244,7 +246,7 @@ const styles = StyleSheet.create({
     header: {
         width: '100%',
         height: 50,
-        marginTop: 60,
+        // marginTop: 60,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',

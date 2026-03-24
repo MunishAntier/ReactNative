@@ -1,10 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl -s \"http://localhost:8081/index.bundle?platform=ios&dev=true&minify=false\" -o /tmp/bundle_v4.js)",
-      "Bash(grep '\"\"version\"\"' /Users/user/Desktop/Projects/ReactNative/mobile/app.json)",
-      "Bash(grep -r \"export.*contact\\\\|export.*Contact\" /Users/user/Desktop/Projects/ReactNative/mobile/src --include=*.ts --include=*.tsx)",
-      "Bash(find /Users/user/Desktop/Projects/ReactNative/mobile/src -type d -name *contact* -o -type d -name *store* -o -type d -name *services*)"
+      "Bash(./gradlew clean:*)",
+      "Bash(find /Users/user/Desktop/Invest-Chat/ReactNative/mobile/node_modules/expo/android -name ExpoModulesPackageList*)",
+      "Bash(xargs ls:*)",
+      "Bash(./gradlew :app:dependencies --configuration releaseRuntimeClasspath)",
+      "Read(//Users/user/Desktop/Invest-Chat/ReactNative/{printf \"\"\"\"\"\"\"\"%.1f MB\\\\n\"\"\"\"\"\"\"\", $5/1024/**)",
+      "Read(//Users/user/Desktop/Invest-Chat/ReactNative/mobile/android/{printf \"\"\"\"\"\"\"\"%.1f MB\\\\n\"\"\"\"\"\"\"\", $5/1024/**)"
     ]
   }
 }

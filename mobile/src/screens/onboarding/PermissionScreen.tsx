@@ -21,17 +21,14 @@ interface Props {
 const PermissionScreen: React.FC<Props> = ({ onFinished, onBack }) => {
     const [statuses, setStatuses] = useState<Record<string, any>>({});
     const [isLoading, setIsLoading] = useState(true);
-    const [hasStartedAuto, setHasStartedAuto] = useState(false);
 
     useEffect(() => {
         const init = async () => {
             const initialStatuses = await refreshStatuses();
-            if (!hasStartedAuto) {
-                setHasStartedAuto(true);
-                startAutoSequence(initialStatuses);
-            }
+            startAutoSequence(initialStatuses);
         };
         init();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const getOrderedPermissions = () => {
@@ -115,11 +112,6 @@ const PermissionScreen: React.FC<Props> = ({ onFinished, onBack }) => {
                     onPress={() => !isGranted && handleRequest(id)}
                     activeOpacity={0.7}
                 >
-                    <View style={styles.cutTopLeft} />
-                    <View style={styles.cutTopLeftLine} />
-                    <View style={styles.cutBottomRight} />
-                    <View style={styles.cutBottomRightLine} />
-
                     <Text style={styles.tileTitle}>{label.title}</Text>
 
                     <View style={[styles.iconBox, isGranted && styles.iconBoxGranted]}>
@@ -130,6 +122,12 @@ const PermissionScreen: React.FC<Props> = ({ onFinished, onBack }) => {
                         />
                     </View>
                 </TouchableOpacity>
+
+                {/* Cut corners rendered in wrapper to avoid Android overflow clipping */}
+                <View style={styles.cutTopLeft} />
+                <View style={styles.cutTopLeftLine} />
+                <View style={styles.cutBottomRight} />
+                <View style={styles.cutBottomRightLine} />
             </View>
         );
     };
@@ -225,6 +223,7 @@ const styles = StyleSheet.create({
 
     tileWrapper: {
         position: 'relative',
+        overflow: 'visible',
     },
 
     tile: {
@@ -246,6 +245,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#E9EDF0',
         left: -1,
         top: -1,
+        zIndex: 1,
     },
 
     cutTopLeftLine: {
@@ -256,6 +256,7 @@ const styles = StyleSheet.create({
         left: -3,
         top: 6,
         transform: [{ rotate: '-45deg' }],
+        zIndex: 2,
     },
 
     cutBottomRight: {
@@ -265,6 +266,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#E9EDF0',
         right: -1,
         bottom: -1,
+        zIndex: 1,
     },
 
     cutBottomRightLine: {
@@ -275,6 +277,7 @@ const styles = StyleSheet.create({
         right: -3,
         bottom: 6,
         transform: [{ rotate: '-45deg' }],
+        zIndex: 2,
     },
 
     tileTitle: {

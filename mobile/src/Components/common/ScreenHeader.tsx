@@ -27,9 +27,10 @@ const ScreenHeader: React.FC<Props> = ({
 }) => {
     const titleColor = dark ? '#FFFFFF' : '#111111';
     const arrowColor = dark ? '#FFFFFF' : '#070707';
+    const insets = useSafeAreaInsets();
 
     return (
-        <View style={[styles.header, backgroundColor ? { backgroundColor } : null]}>
+        <View style={[styles.header, backgroundColor ? { backgroundColor } : null, { marginTop: insets.top }]}>
             <View style={styles.headerLeft}>
                 <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
                     <BackArrow color={arrowColor} size={24} />
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
     header: {
         width: '100%',
         height: 50,
-        marginTop: 60, // Consistent with ChatScreen refinement
+        // marginTop: 60, // Refactored to use insets.top inline
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

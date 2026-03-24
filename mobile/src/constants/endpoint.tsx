@@ -6,6 +6,7 @@ const Path: Record<string, any> = {
     REFRESH_TOKEN: '/identity/sessions/refresh',
     UPDATE_PROFILE: '/account/profile',
     USER_INFO: '/account/users/me',
+    CONTACTS_SYNC: '/account/sync-contacts',
 }
 
 export default Path;
